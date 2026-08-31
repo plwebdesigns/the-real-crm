@@ -1,0 +1,82 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Lead;
+use App\Models\Sale;
+use App\Models\SaleStatus;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Sale>
+ */
+class SaleFactory extends Factory
+{
+    /**
+     * Configure the factory.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Sale $sale): void {
+            if ($sale->agents()->exists()) {
+                return;
+            }
+
+            $sale->agents()->attach(User::factory()->create(), [
+                'commission_percent' => '3.00',
+            ]);
+        });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function definition(): array
+    {
+        return [
+            'lead_id' => Lead::factory(),
+            'sale_status_id' => SaleStatus::factory(),
+            'street_address' => fake()->streetAddress(),
+            'city' => fake()->city(),
+            'state' => fake()->stateAbbr(),
+            'postal_code' => fake()->postcode(),
+            'price' => fake()->numberBetween(150000, 1500000),
+            'closed_at' => null,
+        ];
+    }
+
+    /**
+     * Indicate that the sale is closed.
+     */
+    public function closed(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'sale_status_id' => SaleStatus::factory()->state([
+                'name' => 'Closed',
+            ]),
+            'closed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Indicate that the sale is cancelled.
+     */
+    public function cancelled(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'sale_status_id' => SaleStatus::factory()->state([
+                'name' => 'Cancelled',
+            ]),
+            'closed_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the sale should not have agents attached.
+     */
+    public function withoutAgents(): static
+    {
+        return $this->withoutAfterCreating();
+    }
+}
