@@ -57,4 +57,42 @@ class LeadResourceTest extends TestCase
             'lead_source_id' => $source->id,
         ]);
     }
+
+    public function test_agent_can_create_a_lead_with_optional_property_fields(): void
+    {
+        $agent = User::factory()->create();
+        $status = LeadStatus::factory()->create();
+        $source = LeadSource::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(CreateLead::class)
+            ->fillForm([
+                'first_name' => 'Ada',
+                'last_name' => 'Lovelace',
+                'lead_status_id' => $status->id,
+                'lead_source_id' => $source->id,
+                'location' => 'Austin',
+                'property_type' => 'Single Family',
+                'price_range' => '$300k-$500k',
+                'bedrooms' => 3,
+                'bathrooms' => '2.5',
+                'garage' => true,
+                'pool' => false,
+                'notes' => 'Prefers a quiet street.',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $lead = Lead::query()->where('first_name', 'Ada')->first();
+
+        $this->assertNotNull($lead);
+        $this->assertSame('Austin', $lead->location);
+        $this->assertSame('Single Family', $lead->property_type);
+        $this->assertSame('$300k-$500k', $lead->price_range);
+        $this->assertSame(3, $lead->bedrooms);
+        $this->assertSame('2.5', $lead->bathrooms);
+        $this->assertSame(true, $lead->garage);
+        $this->assertSame(false, $lead->pool);
+        $this->assertSame('Prefers a quiet street.', $lead->notes);
+    }
 }

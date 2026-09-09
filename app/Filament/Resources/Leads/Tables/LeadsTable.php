@@ -34,6 +34,13 @@ class LeadsTable
                 TextColumn::make('source.name')
                     ->label('Source')
                     ->sortable(),
+                TextColumn::make('location')
+                    ->searchable()
+                    ->toggleable(),
+                TextColumn::make('property_type')
+                    ->toggleable(),
+                TextColumn::make('price_range')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

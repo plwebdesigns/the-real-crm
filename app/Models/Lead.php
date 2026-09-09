@@ -9,11 +9,39 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['first_name', 'last_name', 'email', 'phone', 'lead_status_id', 'lead_source_id'])]
+#[Fillable([
+    'first_name',
+    'last_name',
+    'email',
+    'phone',
+    'lead_status_id',
+    'lead_source_id',
+    'location',
+    'property_type',
+    'price_range',
+    'bedrooms',
+    'bathrooms',
+    'garage',
+    'pool',
+    'notes',
+])]
 class Lead extends Model
 {
     /** @use HasFactory<LeadFactory> */
     use HasFactory;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'bedrooms' => 'integer',
+            'bathrooms' => 'decimal:1',
+            'garage' => 'boolean',
+            'pool' => 'boolean',
+        ];
+    }
 
     public function getFullNameAttribute(): string
     {

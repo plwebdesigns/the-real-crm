@@ -57,4 +57,27 @@ class LeadTest extends TestCase
             'lead_status_id' => LeadStatus::factory()->create()->id,
         ]);
     }
+
+    public function test_lead_can_be_persisted_without_optional_property_fields(): void
+    {
+        $lead = Lead::factory()->create([
+            'location' => null,
+            'property_type' => null,
+            'price_range' => null,
+            'bedrooms' => null,
+            'bathrooms' => null,
+            'garage' => null,
+            'pool' => null,
+            'notes' => null,
+        ]);
+
+        $this->assertNull($lead->location);
+        $this->assertNull($lead->property_type);
+        $this->assertNull($lead->price_range);
+        $this->assertNull($lead->bedrooms);
+        $this->assertNull($lead->bathrooms);
+        $this->assertNull($lead->garage);
+        $this->assertNull($lead->pool);
+        $this->assertNull($lead->notes);
+    }
 }

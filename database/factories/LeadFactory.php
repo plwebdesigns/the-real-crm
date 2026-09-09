@@ -24,6 +24,14 @@ class LeadFactory extends Factory
             'phone' => fake()->phoneNumber(),
             'lead_status_id' => LeadStatus::factory(),
             'lead_source_id' => LeadSource::factory(),
+            'location' => fake()->city(),
+            'property_type' => fake()->randomElement(['Single Family', 'Condo', 'Townhouse', 'Land']),
+            'price_range' => fake()->randomElement(['$200k-$300k', '$300k-$500k', '$500k-$750k', '$750k+']),
+            'bedrooms' => fake()->numberBetween(1, 5),
+            'bathrooms' => fake()->randomElement(['1.0', '1.5', '2.0', '2.5', '3.0', '3.5']),
+            'garage' => fake()->boolean(),
+            'pool' => fake()->boolean(),
+            'notes' => fake()->optional()->paragraph(),
         ];
     }
 }
