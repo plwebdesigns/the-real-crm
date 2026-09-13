@@ -28,6 +28,7 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path('')
             ->login()
+            ->brandName(fn (): ?string => config('app.company_name'))
             ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Lime,
