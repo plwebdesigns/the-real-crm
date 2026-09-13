@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'state',
     'postal_code',
     'price',
+    'commission_percentage',
+    'gross_commission',
     'closed_at',
 ])]
 class Sale extends Model
@@ -32,8 +34,35 @@ class Sale extends Model
     {
         return [
             'price' => 'decimal:2',
+            'commission_percentage' => 'decimal:1',
+            'gross_commission' => 'decimal:2',
             'closed_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Sale $sale): void {
+            $sale->gross_commission = self::grossCommissionFor(
+                $sale->price,
+                $sale->commission_percentage,
+            );
+        });
+
+        static::saved(function (Sale $sale): void {
+            if (! $sale->wasChanged(['price', 'commission_percentage'])) {
+                return;
+            }
+
+            $sale->agentAssignments()->get()->each(
+                fn (SaleUser $assignment): bool => $assignment->save(),
+            );
+        });
+    }
+
+    public static function grossCommissionFor(mixed $price, mixed $percentage): string
+    {
+        return number_format(round(((float) $price) * ((float) $percentage) / 100, 2), 2, '.', '');
     }
 
     /**
@@ -59,7 +88,7 @@ class Sale extends Model
     {
         return $this->belongsToMany(User::class)
             ->using(SaleUser::class)
-            ->withPivot('commission_percent')
+            ->withPivot(['commission_percent', 'net_commission'])
             ->withTimestamps();
     }
 

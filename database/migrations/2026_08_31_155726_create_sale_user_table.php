@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('sale_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->decimal('commission_percent', 5, 2);
+            $table->unsignedTinyInteger('commission_percent');
+            $table->decimal('net_commission', 12, 2);
             $table->timestamps();
 
             $table->unique(['sale_id', 'user_id']);

@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('state', 2);
             $table->string('postal_code', 10);
             $table->decimal('price', 12, 2);
+            $table->decimal('commission_percentage', 3, 1);
+            $table->decimal('gross_commission', 12, 2);
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
         });

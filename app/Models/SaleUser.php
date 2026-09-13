@@ -13,6 +13,7 @@ class SaleUser extends Pivot
         'sale_id',
         'user_id',
         'commission_percent',
+        'net_commission',
     ];
 
     /**
@@ -21,8 +22,24 @@ class SaleUser extends Pivot
     protected function casts(): array
     {
         return [
-            'commission_percent' => 'decimal:2',
+            'commission_percent' => 'integer',
+            'net_commission' => 'decimal:2',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (SaleUser $assignment): void {
+            $assignment->net_commission = self::netCommissionFor(
+                $assignment->sale?->gross_commission,
+                $assignment->commission_percent,
+            );
+        });
+    }
+
+    public static function netCommissionFor(mixed $grossCommission, mixed $percent): string
+    {
+        return number_format(round(((float) $grossCommission) * ((float) $percent) / 100, 2), 2, '.', '');
     }
 
     /**
