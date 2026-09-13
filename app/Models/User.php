@@ -53,7 +53,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->belongsToMany(Sale::class)
             ->using(SaleUser::class)
-            ->withPivot('commission_percent')
+            ->withPivot(['commission_percent', 'net_commission'])
             ->withTimestamps();
     }
 }

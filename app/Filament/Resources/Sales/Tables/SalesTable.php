@@ -37,6 +37,13 @@ class SalesTable
                 TextColumn::make('price')
                     ->money('USD')
                     ->sortable(),
+                TextColumn::make('commission_percentage')
+                    ->label('Commission %')
+                    ->suffix('%')
+                    ->sortable(),
+                TextColumn::make('gross_commission')
+                    ->money('USD')
+                    ->sortable(),
                 TextColumn::make('agents.name')
                     ->label('Agents')
                     ->badge()

@@ -23,6 +23,7 @@ class SaleTest extends TestCase
             'state' => 'TX',
             'postal_code' => '78701',
             'price' => '450000.00',
+            'commission_percentage' => '3.0',
             'sale_status_id' => SaleStatus::factory()->create()->id,
         ]);
     }
@@ -36,28 +37,67 @@ class SaleTest extends TestCase
         ]);
     }
 
+    public function test_sale_calculates_gross_commission_from_price_and_percentage(): void
+    {
+        $sale = Sale::factory()->withoutAgents()->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+
+        $this->assertSame('13500.00', $sale->gross_commission);
+    }
+
     public function test_sale_can_have_multiple_agents_with_commission_splits(): void
     {
-        $sale = Sale::factory()->withoutAgents()->create();
+        $sale = Sale::factory()->withoutAgents()->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
         $listingAgent = User::factory()->create();
         $buyersAgent = User::factory()->create();
 
-        $sale->agents()->attach($listingAgent, ['commission_percent' => '2.50']);
-        $sale->agents()->attach($buyersAgent, ['commission_percent' => '3.00']);
+        $sale->agents()->attach($listingAgent, ['commission_percent' => 50]);
+        $sale->agents()->attach($buyersAgent, ['commission_percent' => 50]);
 
         $sale->load('agents');
 
         $this->assertCount(2, $sale->agents);
-        $this->assertSame('2.50', $sale->agents->find($listingAgent->id)?->pivot->commission_percent);
-        $this->assertSame('3.00', $sale->agents->find($buyersAgent->id)?->pivot->commission_percent);
+        $this->assertSame(50, $sale->agents->find($listingAgent->id)?->pivot->commission_percent);
+        $this->assertSame(50, $sale->agents->find($buyersAgent->id)?->pivot->commission_percent);
+        $this->assertSame('6750.00', $sale->agents->find($listingAgent->id)?->pivot->net_commission);
+        $this->assertSame('6750.00', $sale->agents->find($buyersAgent->id)?->pivot->net_commission);
+    }
+
+    public function test_updating_sale_price_recalculates_agent_net_commissions(): void
+    {
+        $sale = Sale::factory()->withoutAgents()->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        $listingAgent = User::factory()->create();
+        $buyersAgent = User::factory()->create();
+
+        $sale->agents()->attach($listingAgent, ['commission_percent' => 50]);
+        $sale->agents()->attach($buyersAgent, ['commission_percent' => 50]);
+
+        $sale->update(['price' => '500000.00']);
+        $sale->load('agents');
+
+        $this->assertSame('15000.00', $sale->gross_commission);
+        $this->assertSame('7500.00', $sale->agents->find($listingAgent->id)?->pivot->net_commission);
+        $this->assertSame('7500.00', $sale->agents->find($buyersAgent->id)?->pivot->net_commission);
     }
 
     public function test_factory_created_sale_has_at_least_one_agent(): void
     {
-        $sale = Sale::factory()->create();
+        $sale = Sale::factory()->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
 
         $this->assertCount(1, $sale->agents);
-        $this->assertSame('3.00', $sale->agents->first()?->pivot->commission_percent);
+        $this->assertSame(100, $sale->agents->first()?->pivot->commission_percent);
+        $this->assertSame('13500.00', $sale->agents->first()?->pivot->net_commission);
     }
 
     public function test_same_agent_cannot_be_attached_to_a_sale_twice(): void
@@ -65,10 +105,10 @@ class SaleTest extends TestCase
         $sale = Sale::factory()->withoutAgents()->create();
         $agent = User::factory()->create();
 
-        $sale->agents()->attach($agent, ['commission_percent' => '3.00']);
+        $sale->agents()->attach($agent, ['commission_percent' => 100]);
 
         $this->expectException(QueryException::class);
 
-        $sale->agents()->attach($agent, ['commission_percent' => '1.00']);
+        $sale->agents()->attach($agent, ['commission_percent' => 50]);
     }
 }

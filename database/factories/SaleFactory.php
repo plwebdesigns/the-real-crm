@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
+use App\Models\SaleUser;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,15 +19,23 @@ class SaleFactory extends Factory
      */
     public function configure(): static
     {
-        return $this->afterCreating(function (Sale $sale): void {
-            if ($sale->agents()->exists()) {
-                return;
-            }
+        return $this
+            ->afterMaking(function (Sale $sale): void {
+                $sale->gross_commission = Sale::grossCommissionFor(
+                    $sale->price,
+                    $sale->commission_percentage,
+                );
+            })
+            ->afterCreating(function (Sale $sale): void {
+                if ($sale->agents()->exists()) {
+                    return;
+                }
 
-            $sale->agents()->attach(User::factory()->create(), [
-                'commission_percent' => '3.00',
-            ]);
-        });
+                $sale->agents()->attach(User::factory()->create(), [
+                    'commission_percent' => 100,
+                    'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 100),
+                ]);
+            });
     }
 
     /**
@@ -42,6 +51,7 @@ class SaleFactory extends Factory
             'state' => fake()->stateAbbr(),
             'postal_code' => fake()->postcode(),
             'price' => fake()->numberBetween(150000, 1500000),
+            'commission_percentage' => '3.0',
             'closed_at' => null,
         ];
     }
