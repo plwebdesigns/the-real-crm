@@ -34,6 +34,10 @@ class LeadsTable
                 TextColumn::make('source.name')
                     ->label('Source')
                     ->sortable(),
+                TextColumn::make('agents.name')
+                    ->label('Agents')
+                    ->badge()
+                    ->separator(','),
                 TextColumn::make('location')
                     ->searchable()
                     ->toggleable(),

@@ -6,6 +6,7 @@ use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\Sale;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Tests\TestCase;
@@ -79,5 +80,32 @@ class LeadTest extends TestCase
         $this->assertNull($lead->garage);
         $this->assertNull($lead->pool);
         $this->assertNull($lead->notes);
+    }
+
+    public function test_lead_can_have_multiple_agents(): void
+    {
+        $lead = Lead::factory()->create();
+        $listingAgent = User::factory()->create();
+        $buyersAgent = User::factory()->create();
+
+        $lead->agents()->attach([$listingAgent->id, $buyersAgent->id]);
+
+        $lead->load('agents');
+
+        $this->assertCount(2, $lead->agents);
+        $this->assertTrue($lead->agents->contains($listingAgent));
+        $this->assertTrue($lead->agents->contains($buyersAgent));
+    }
+
+    public function test_same_agent_cannot_be_attached_to_a_lead_twice(): void
+    {
+        $lead = Lead::factory()->create();
+        $agent = User::factory()->create();
+
+        $lead->agents()->attach($agent);
+
+        $this->expectException(QueryException::class);
+
+        $lead->agents()->attach($agent);
     }
 }

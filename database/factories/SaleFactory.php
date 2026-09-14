@@ -66,6 +66,7 @@ class SaleFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'sale_status_id' => SaleStatus::factory()->state([
                 'name' => 'Closed',
+                'slug' => 'closed',
             ]),
             'closed_at' => now(),
         ]);
@@ -79,6 +80,21 @@ class SaleFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'sale_status_id' => SaleStatus::factory()->state([
                 'name' => 'Cancelled',
+                'slug' => 'cancelled',
+            ]),
+            'closed_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the sale is pending.
+     */
+    public function pending(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'sale_status_id' => SaleStatus::factory()->state([
+                'name' => 'Pending',
+                'slug' => 'pending',
             ]),
             'closed_at' => null,
         ]);

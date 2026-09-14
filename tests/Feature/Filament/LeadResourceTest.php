@@ -4,6 +4,7 @@ namespace Tests\Feature\Filament;
 
 use App\Filament\Resources\Leads\LeadResource;
 use App\Filament\Resources\Leads\Pages\CreateLead;
+use App\Filament\Resources\Leads\Pages\EditLead;
 use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
@@ -56,6 +57,12 @@ class LeadResourceTest extends TestCase
             'lead_status_id' => $status->id,
             'lead_source_id' => $source->id,
         ]);
+
+        $lead = Lead::query()->where('first_name', 'Ada')->first();
+
+        $this->assertNotNull($lead);
+        $this->assertCount(1, $lead->agents);
+        $this->assertTrue($lead->agents->contains($agent));
     }
 
     public function test_agent_can_create_a_lead_with_optional_property_fields(): void
@@ -94,5 +101,57 @@ class LeadResourceTest extends TestCase
         $this->assertSame(true, $lead->garage);
         $this->assertSame(false, $lead->pool);
         $this->assertSame('Prefers a quiet street.', $lead->notes);
+    }
+
+    public function test_agent_can_assign_multiple_agents_when_creating_a_lead(): void
+    {
+        $agent = User::factory()->create();
+        $listingAgent = User::factory()->create();
+        $buyersAgent = User::factory()->create();
+        $status = LeadStatus::factory()->create();
+        $source = LeadSource::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(CreateLead::class)
+            ->fillForm([
+                'first_name' => 'Ada',
+                'last_name' => 'Lovelace',
+                'lead_status_id' => $status->id,
+                'lead_source_id' => $source->id,
+                'agents' => [$listingAgent->id, $buyersAgent->id],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $lead = Lead::query()->where('first_name', 'Ada')->first();
+
+        $this->assertNotNull($lead);
+        $this->assertCount(2, $lead->agents);
+        $this->assertTrue($lead->agents->contains($listingAgent));
+        $this->assertTrue($lead->agents->contains($buyersAgent));
+        $this->assertFalse($lead->agents->contains($agent));
+    }
+
+    public function test_agent_can_update_assigned_agents_on_a_lead(): void
+    {
+        $agent = User::factory()->create();
+        $originalAgent = User::factory()->create();
+        $replacementAgent = User::factory()->create();
+        $lead = Lead::factory()->create();
+        $lead->agents()->attach($originalAgent);
+
+        Livewire::actingAs($agent)
+            ->test(EditLead::class, ['record' => $lead->getRouteKey()])
+            ->fillForm([
+                'agents' => [$replacementAgent->id],
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $lead->refresh()->load('agents');
+
+        $this->assertCount(1, $lead->agents);
+        $this->assertTrue($lead->agents->contains($replacementAgent));
+        $this->assertFalse($lead->agents->contains($originalAgent));
     }
 }

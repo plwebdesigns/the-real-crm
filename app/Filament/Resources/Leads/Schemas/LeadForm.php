@@ -40,6 +40,12 @@ class LeadForm
                     ->searchable()
                     ->preload()
                     ->required(),
+                Select::make('agents')
+                    ->relationship('agents', 'name')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
+                    ->default(fn (): array => array_filter([auth()->id()])),
                 TextInput::make('location')
                     ->maxLength(255),
                 TextInput::make('property_type')
