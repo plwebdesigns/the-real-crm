@@ -2,12 +2,15 @@
 
 namespace Database\Seeders;
 
+use App\Models\Lead;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
+use App\Models\Sale;
+use App\Models\SaleStatus;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use App\Models\Lead;
-use App\Models\Sale;
 
 class DatabaseSeeder extends Seeder
 {
@@ -26,8 +29,13 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('Password123'),
         ]);
 
-        // Create some sample leads and sales
-        Lead::factory(20)->create();
-        Sale::factory(10)->create();
+        $lookups = [
+            LeadStatus::all(),
+            LeadSource::all(),
+            SaleStatus::all(),
+        ];
+
+        Lead::factory(20)->recycle($lookups)->create();
+        Sale::factory(10)->recycle($lookups)->create();
     }
 }
