@@ -53,7 +53,7 @@ class SalesTable
                     ->badge()
                     ->separator(','),
                 TextColumn::make('closed_at')
-                    ->dateTime()
+                    ->date()
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('created_at')
@@ -68,6 +68,11 @@ class SalesTable
                     ->relationship('status', 'name'),
                 SelectFilter::make('sale_type')
                     ->options(SaleType::class),
+                SelectFilter::make('agents')
+                    ->label('Agent')
+                    ->relationship('agents', 'name')
+                    ->searchable()
+                    ->preload(),
             ])
             ->recordActions([
                 EditAction::make(),

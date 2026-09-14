@@ -4,10 +4,13 @@ namespace Tests\Feature\Filament;
 
 use App\Enums\SaleType;
 use App\Filament\Resources\Sales\Pages\CreateSale;
+use App\Filament\Resources\Sales\Pages\EditSale;
+use App\Filament\Resources\Sales\Pages\ListSales;
 use App\Filament\Resources\Sales\SaleResource;
 use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
+use App\Models\SaleUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Livewire\Livewire;
@@ -54,6 +57,97 @@ class SaleResourceTest extends TestCase
             ->assertOk();
     }
 
+    public function test_closed_tab_shows_year_to_date_closed_sales_for_the_selected_agent(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $agent = User::factory()->create();
+        $otherAgent = User::factory()->create();
+        $closedStatus = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+        $pendingStatus = SaleStatus::factory()->create([
+            'name' => 'Pending',
+            'slug' => 'pending',
+        ]);
+        $closedSale = $this->assignAgent(
+            Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create(),
+            $agent,
+        );
+        $pendingSale = $this->assignAgent(
+            Sale::factory()->pending()->withoutAgents()->recycle($pendingStatus)->create(),
+            $agent,
+        );
+        $lastYearClosedSale = $this->assignAgent(
+            Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create([
+                'closed_at' => now()->subYear(),
+            ]),
+            $agent,
+        );
+        $otherAgentClosedSale = $this->assignAgent(
+            Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create(),
+            $otherAgent,
+        );
+
+        Livewire::actingAs($agent)
+            ->test(ListSales::class, [
+                'activeTab' => 'closed',
+                'tableFilters' => [
+                    'agents' => [
+                        'value' => $agent->id,
+                    ],
+                ],
+            ])
+            ->assertCanSeeTableRecords([$closedSale])
+            ->assertCanNotSeeTableRecords([
+                $pendingSale,
+                $lastYearClosedSale,
+                $otherAgentClosedSale,
+            ]);
+    }
+
+    public function test_pending_tab_shows_pending_sales_for_the_selected_agent(): void
+    {
+        $agent = User::factory()->create();
+        $otherAgent = User::factory()->create();
+        $closedStatus = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+        $pendingStatus = SaleStatus::factory()->create([
+            'name' => 'Pending',
+            'slug' => 'pending',
+        ]);
+        $pendingSale = $this->assignAgent(
+            Sale::factory()->pending()->withoutAgents()->recycle($pendingStatus)->create(),
+            $agent,
+        );
+        $closedSale = $this->assignAgent(
+            Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create(),
+            $agent,
+        );
+        $otherAgentPendingSale = $this->assignAgent(
+            Sale::factory()->pending()->withoutAgents()->recycle($pendingStatus)->create(),
+            $otherAgent,
+        );
+
+        Livewire::actingAs($agent)
+            ->test(ListSales::class, [
+                'activeTab' => 'pending',
+                'tableFilters' => [
+                    'agents' => [
+                        'value' => $agent->id,
+                    ],
+                ],
+            ])
+            ->assertCanSeeTableRecords([$pendingSale])
+            ->assertCanNotSeeTableRecords([
+                $closedSale,
+                $otherAgentPendingSale,
+            ]);
+    }
+
     public function test_agent_can_create_a_sale_with_an_agent_assignment(): void
     {
         $agent = User::factory()->create();
@@ -77,6 +171,75 @@ class SaleResourceTest extends TestCase
         $this->assertCount(1, $sale->agents);
         $this->assertSame(100, $sale->agents->first()?->pivot->commission_percent);
         $this->assertSame('13500.00', $sale->agents->first()?->pivot->net_commission);
+    }
+
+    public function test_closed_sale_requires_a_closed_at_date(): void
+    {
+        $agent = User::factory()->create();
+        $lead = Lead::factory()->create();
+        $status = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+        $assignedAgent = User::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(CreateSale::class)
+            ->fillForm($this->validSaleForm($lead, $status, $assignedAgent))
+            ->call('create')
+            ->assertHasFormErrors(['closed_at']);
+
+        $this->assertDatabaseMissing(Sale::class, [
+            'street_address' => '123 Main St',
+        ]);
+    }
+
+    public function test_closed_sale_can_be_created_with_a_closed_at_date(): void
+    {
+        $agent = User::factory()->create();
+        $lead = Lead::factory()->create();
+        $status = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+        $assignedAgent = User::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(CreateSale::class)
+            ->fillForm($this->validSaleForm($lead, $status, $assignedAgent, [
+                'closed_at' => '2026-03-15',
+            ]))
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $sale = Sale::query()->where('street_address', '123 Main St')->first();
+
+        $this->assertNotNull($sale);
+        $this->assertSame('2026-03-15', $sale->closed_at?->toDateString());
+    }
+
+    public function test_updating_a_sale_to_closed_requires_a_closed_at_date(): void
+    {
+        $agent = User::factory()->create();
+        $sale = Sale::factory()->pending()->create();
+        $closedStatus = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+
+        Livewire::actingAs($agent)
+            ->test(EditSale::class, ['record' => $sale->getRouteKey()])
+            ->fillForm([
+                'sale_status_id' => $closedStatus->id,
+                'closed_at' => null,
+            ])
+            ->call('save')
+            ->assertHasFormErrors(['closed_at']);
+
+        $sale->refresh();
+
+        $this->assertNotSame($closedStatus->id, $sale->sale_status_id);
+        $this->assertNull($sale->closed_at);
     }
 
     public function test_sale_requires_at_least_one_agent(): void
@@ -220,5 +383,15 @@ class SaleResourceTest extends TestCase
             ],
             ...$overrides,
         ];
+    }
+
+    private function assignAgent(Sale $sale, User $agent): Sale
+    {
+        $sale->agents()->attach($agent, [
+            'commission_percent' => 100,
+            'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 100),
+        ]);
+
+        return $sale;
     }
 }

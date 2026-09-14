@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Filament\Resources\Sales\SaleResource;
 use App\Filament\Widgets\AssignedLeadsTable;
 use App\Filament\Widgets\SalesStatsOverview;
 use App\Models\Lead;
@@ -71,6 +72,16 @@ class DashboardTest extends TestCase
             ->assertSee('1')
             ->assertSee('Year to date')
             ->assertSee('Open pipeline');
+    }
+
+    public function test_closed_and_pending_sales_stats_link_to_the_matching_sales_list(): void
+    {
+        $agent = User::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(SalesStatsOverview::class)
+            ->assertSeeHtml(e($this->salesIndexUrl('closed', $agent)))
+            ->assertSeeHtml(e($this->salesIndexUrl('pending', $agent)));
     }
 
     public function test_sales_stats_do_not_include_another_agents_closed_sale(): void
@@ -162,6 +173,18 @@ class DashboardTest extends TestCase
         ]);
 
         return $sale;
+    }
+
+    private function salesIndexUrl(string $tab, User $agent): string
+    {
+        return SaleResource::getUrl('index', [
+            'tab' => $tab,
+            'filters' => [
+                'agents' => [
+                    'value' => $agent->id,
+                ],
+            ],
+        ], isAbsolute: false);
     }
 
     private function closedStatus(): SaleStatus

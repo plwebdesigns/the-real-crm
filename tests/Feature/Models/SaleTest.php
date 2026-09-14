@@ -102,6 +102,43 @@ class SaleTest extends TestCase
         $this->assertSame('13500.00', $sale->agents->first()?->pivot->net_commission);
     }
 
+    public function test_factory_fills_closed_at_when_status_is_closed(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $status = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+
+        $sale = Sale::factory()->recycle($status)->create();
+
+        $this->assertSame('2026-09-14', $sale->fresh()->closed_at?->toDateString());
+    }
+
+    public function test_factory_preserves_an_explicit_closed_at_date(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $status = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+
+        $sale = Sale::factory()->recycle($status)->create([
+            'closed_at' => '2026-03-15',
+        ]);
+
+        $this->assertSame('2026-03-15', $sale->fresh()->closed_at?->toDateString());
+    }
+
+    public function test_factory_does_not_fill_closed_at_when_status_is_not_closed(): void
+    {
+        $sale = Sale::factory()->pending()->create();
+
+        $this->assertNull($sale->fresh()->closed_at);
+    }
+
     public function test_same_agent_cannot_be_attached_to_a_sale_twice(): void
     {
         $sale = Sale::factory()->withoutAgents()->create();

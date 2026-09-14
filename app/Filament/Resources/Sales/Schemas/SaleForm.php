@@ -5,9 +5,10 @@ namespace App\Filament\Resources\Sales\Schemas;
 use App\Enums\SaleType;
 use App\Models\Lead;
 use App\Models\Sale;
+use App\Models\SaleStatus;
 use App\Models\SaleUser;
 use Closure;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -35,7 +36,8 @@ class SaleForm
                     ->relationship('status', 'name')
                     ->searchable()
                     ->preload()
-                    ->required(),
+                    ->required()
+                    ->live(),
                 Select::make('sale_type')
                     ->options(SaleType::class)
                     ->required(),
@@ -79,7 +81,8 @@ class SaleForm
                     ->numeric()
                     ->disabled()
                     ->dehydrated(false),
-                DateTimePicker::make('closed_at'),
+                DatePicker::make('closed_at')
+                    ->required(fn (Get $get): bool => self::isClosedStatus($get('sale_status_id'))),
                 Repeater::make('agentAssignments')
                     ->label('Agents')
                     ->relationship()
@@ -135,6 +138,18 @@ class SaleForm
                         };
                     }),
             ]);
+    }
+
+    private static function isClosedStatus(mixed $statusId): bool
+    {
+        if (! filled($statusId)) {
+            return false;
+        }
+
+        return SaleStatus::query()
+            ->whereKey($statusId)
+            ->where('slug', 'closed')
+            ->exists();
     }
 
     private static function updateCalculatedCommissions(Set $set, Get $get): void

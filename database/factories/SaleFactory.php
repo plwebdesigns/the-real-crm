@@ -26,6 +26,8 @@ class SaleFactory extends Factory
                     $sale->price,
                     $sale->commission_percentage,
                 );
+
+                $this->fillClosedAtWhenStatusIsClosed($sale);
             })
             ->afterCreating(function (Sale $sale): void {
                 if ($sale->agents()->exists()) {
@@ -68,7 +70,6 @@ class SaleFactory extends Factory
                 'name' => 'Closed',
                 'slug' => 'closed',
             ]),
-            'closed_at' => now(),
         ]);
     }
 
@@ -106,5 +107,18 @@ class SaleFactory extends Factory
     public function withoutAgents(): static
     {
         return $this->withoutAfterCreating();
+    }
+
+    private function fillClosedAtWhenStatusIsClosed(Sale $sale): void
+    {
+        if ($sale->closed_at !== null) {
+            return;
+        }
+
+        if ($sale->status?->slug !== 'closed') {
+            return;
+        }
+
+        $sale->closed_at = today();
     }
 }

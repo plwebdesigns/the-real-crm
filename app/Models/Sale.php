@@ -41,7 +41,7 @@ class Sale extends Model
             'price' => 'decimal:2',
             'commission_percentage' => 'decimal:1',
             'gross_commission' => 'decimal:2',
-            'closed_at' => 'datetime',
+            'closed_at' => 'date',
         ];
     }
 

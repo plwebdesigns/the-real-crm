@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\Sales\SaleResource;
 use App\Models\User;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -31,7 +32,8 @@ class SalesStatsOverview extends StatsOverviewWidget
 
         return [
             Stat::make('Closed sales', (string) ($closed->closed_count ?? 0))
-                ->description('Year to date'),
+                ->description('Year to date')
+                ->url($this->salesIndexUrl('closed', $user)),
             Stat::make(
                 'Closed volume',
                 Number::currency((float) ($closed->closed_volume ?? 0), 'USD'),
@@ -43,7 +45,21 @@ class SalesStatsOverview extends StatsOverviewWidget
             Stat::make(
                 'Pending sales',
                 (string) $user->sales()->pending()->count(),
-            )->description('Open pipeline'),
+            )
+                ->description('Open pipeline')
+                ->url($this->salesIndexUrl('pending', $user)),
         ];
+    }
+
+    private function salesIndexUrl(string $tab, User $user): string
+    {
+        return SaleResource::getUrl('index', [
+            'tab' => $tab,
+            'filters' => [
+                'agents' => [
+                    'value' => $user->id,
+                ],
+            ],
+        ], isAbsolute: false);
     }
 }
