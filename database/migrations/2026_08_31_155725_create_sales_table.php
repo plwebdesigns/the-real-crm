@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('lead_id')->constrained()->restrictOnDelete();
             $table->foreignId('sale_status_id')->constrained()->restrictOnDelete();
+            $table->string('sale_type');
             $table->string('street_address');
             $table->string('city');
             $table->string('state', 2);

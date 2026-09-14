@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\SaleType;
 use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
@@ -46,6 +47,7 @@ class SaleFactory extends Factory
         return [
             'lead_id' => Lead::factory(),
             'sale_status_id' => SaleStatus::factory(),
+            'sale_type' => fake()->randomElement(SaleType::cases()),
             'street_address' => fake()->streetAddress(),
             'city' => fake()->city(),
             'state' => fake()->stateAbbr(),

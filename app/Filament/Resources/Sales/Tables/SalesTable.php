@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Sales\Tables;
 
+use App\Enums\SaleType;
 use App\Models\Sale;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -25,6 +26,9 @@ class SalesTable
                     ->sortable(),
                 TextColumn::make('status.name')
                     ->label('Status')
+                    ->sortable(),
+                TextColumn::make('sale_type')
+                    ->badge()
                     ->sortable(),
                 TextColumn::make('street_address')
                     ->searchable()
@@ -62,6 +66,8 @@ class SalesTable
                 SelectFilter::make('sale_status_id')
                     ->label('Status')
                     ->relationship('status', 'name'),
+                SelectFilter::make('sale_type')
+                    ->options(SaleType::class),
             ])
             ->recordActions([
                 EditAction::make(),

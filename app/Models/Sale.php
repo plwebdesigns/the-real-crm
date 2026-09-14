@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SaleType;
 use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'lead_id',
     'sale_status_id',
+    'sale_type',
     'street_address',
     'city',
     'state',
@@ -33,6 +35,7 @@ class Sale extends Model
     protected function casts(): array
     {
         return [
+            'sale_type' => SaleType::class,
             'price' => 'decimal:2',
             'commission_percentage' => 'decimal:1',
             'gross_commission' => 'decimal:2',

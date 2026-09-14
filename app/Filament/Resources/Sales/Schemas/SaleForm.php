@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Sales\Schemas;
 
+use App\Enums\SaleType;
 use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleUser;
@@ -34,6 +35,9 @@ class SaleForm
                     ->relationship('status', 'name')
                     ->searchable()
                     ->preload()
+                    ->required(),
+                Select::make('sale_type')
+                    ->options(SaleType::class)
                     ->required(),
                 TextInput::make('street_address')
                     ->required()
