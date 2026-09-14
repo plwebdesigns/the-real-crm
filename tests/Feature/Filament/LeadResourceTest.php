@@ -5,9 +5,12 @@ namespace Tests\Feature\Filament;
 use App\Filament\Resources\Leads\LeadResource;
 use App\Filament\Resources\Leads\Pages\CreateLead;
 use App\Filament\Resources\Leads\Pages\EditLead;
+use App\Filament\Resources\Leads\Pages\ListLeads;
 use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
+use App\Models\Sale;
+use App\Models\SaleStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Livewire\Livewire;
@@ -153,5 +156,88 @@ class LeadResourceTest extends TestCase
         $this->assertCount(1, $lead->agents);
         $this->assertTrue($lead->agents->contains($replacementAgent));
         $this->assertFalse($lead->agents->contains($originalAgent));
+    }
+
+    public function test_working_tab_shows_contacted_and_qualified_leads_for_the_selected_agent(): void
+    {
+        $agent = User::factory()->create();
+        $otherAgent = User::factory()->create();
+        $contacted = $this->assignLead(Lead::factory()->contacted()->create(), $agent);
+        $qualified = $this->assignLead(Lead::factory()->qualified()->create(), $agent);
+        $new = $this->assignLead(Lead::factory()->asNew()->create(), $agent);
+        $lost = $this->assignLead(Lead::factory()->lost()->create(), $agent);
+        $otherContacted = $this->assignLead(Lead::factory()->contacted()->create(), $otherAgent);
+
+        Livewire::actingAs($agent)
+            ->test(ListLeads::class, [
+                'activeTab' => 'working',
+                'tableFilters' => [
+                    'agents' => [
+                        'value' => $agent->id,
+                    ],
+                ],
+            ])
+            ->assertCanSeeTableRecords([$contacted, $qualified])
+            ->assertCanNotSeeTableRecords([$new, $lost, $otherContacted]);
+    }
+
+    public function test_lost_tab_shows_lost_leads_for_the_selected_agent(): void
+    {
+        $agent = User::factory()->create();
+        $otherAgent = User::factory()->create();
+        $lost = $this->assignLead(Lead::factory()->lost()->create(), $agent);
+        $contacted = $this->assignLead(Lead::factory()->contacted()->create(), $agent);
+        $otherLost = $this->assignLead(Lead::factory()->lost()->create(), $otherAgent);
+
+        Livewire::actingAs($agent)
+            ->test(ListLeads::class, [
+                'activeTab' => 'lost',
+                'tableFilters' => [
+                    'agents' => [
+                        'value' => $agent->id,
+                    ],
+                ],
+            ])
+            ->assertCanSeeTableRecords([$lost])
+            ->assertCanNotSeeTableRecords([$contacted, $otherLost]);
+    }
+
+    public function test_closed_tab_shows_leads_with_a_closed_sale_for_the_selected_agent(): void
+    {
+        $agent = User::factory()->create();
+        $otherAgent = User::factory()->create();
+        $closed = $this->assignLead(Lead::factory()->qualified()->create(), $agent);
+        $pending = $this->assignLead(Lead::factory()->qualified()->create(), $agent);
+        $otherClosed = $this->assignLead(Lead::factory()->qualified()->create(), $otherAgent);
+        $closedStatus = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+        $pendingStatus = SaleStatus::factory()->create([
+            'name' => 'Pending',
+            'slug' => 'pending',
+        ]);
+        Sale::factory()->closed()->recycle($closedStatus)->for($closed)->create();
+        Sale::factory()->pending()->recycle($pendingStatus)->for($pending)->create();
+        Sale::factory()->closed()->recycle($closedStatus)->for($otherClosed)->create();
+
+        Livewire::actingAs($agent)
+            ->test(ListLeads::class, [
+                'activeTab' => 'closed',
+                'tableFilters' => [
+                    'agents' => [
+                        'value' => $agent->id,
+                    ],
+                ],
+            ])
+            ->assertCanSeeTableRecords([$closed])
+            ->assertCanNotSeeTableRecords([$pending, $otherClosed]);
+    }
+
+    private function assignLead(Lead $lead, User $agent): Lead
+    {
+        $lead->agents()->attach($agent);
+
+        return $lead;
     }
 }

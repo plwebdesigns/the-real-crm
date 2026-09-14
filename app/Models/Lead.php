@@ -96,4 +96,43 @@ class Lead extends Model
             fn (Builder $agents): Builder => $agents->whereKey($user->id),
         );
     }
+
+    /**
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function working(Builder $query): Builder
+    {
+        return $query->whereHas(
+            'status',
+            fn (Builder $status): Builder => $status->whereIn('slug', ['contacted', 'qualified']),
+        );
+    }
+
+    /**
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function lost(Builder $query): Builder
+    {
+        return $query->whereHas(
+            'status',
+            fn (Builder $status): Builder => $status->where('slug', 'lost'),
+        );
+    }
+
+    /**
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function closed(Builder $query): Builder
+    {
+        return $query->whereHas(
+            'sales',
+            fn (Builder $sales): Builder => $sales->closed(),
+        );
+    }
 }

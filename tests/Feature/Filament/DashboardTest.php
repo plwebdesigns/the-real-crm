@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Filament\Resources\Leads\LeadResource;
 use App\Filament\Resources\Sales\SaleResource;
 use App\Filament\Widgets\AssignedLeadsTable;
+use App\Filament\Widgets\LeadsStatsOverview;
 use App\Filament\Widgets\SalesStatsOverview;
 use App\Models\Lead;
 use App\Models\Sale;
@@ -165,6 +167,72 @@ class DashboardTest extends TestCase
             ->assertCanNotSeeTableRecords([$otherLead]);
     }
 
+    public function test_agent_sees_assigned_working_lost_and_closed_lead_stats(): void
+    {
+        $agent = User::factory()->create();
+        $this->assignLead(Lead::factory()->asNew()->create(), $agent);
+        $this->assignLead(Lead::factory()->contacted()->create(), $agent);
+        $qualified = $this->assignLead(Lead::factory()->qualified()->create(), $agent);
+        $this->assignLead(Lead::factory()->lost()->create(), $agent);
+        Sale::factory()->closed()->for($qualified)->create();
+
+        Livewire::actingAs($agent)
+            ->test(LeadsStatsOverview::class)
+            ->assertSeeInOrder([
+                'Leads assigned',
+                '4',
+                'Working leads',
+                '2',
+                'Lost leads',
+                '1',
+                'Percent of leads closed',
+                '25%',
+            ]);
+    }
+
+    public function test_lead_stats_link_to_the_matching_leads_list(): void
+    {
+        $agent = User::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(LeadsStatsOverview::class)
+            ->assertSeeHtml(e($this->leadsIndexUrl('all', $agent)))
+            ->assertSeeHtml(e($this->leadsIndexUrl('working', $agent)))
+            ->assertSeeHtml(e($this->leadsIndexUrl('lost', $agent)))
+            ->assertSeeHtml(e($this->leadsIndexUrl('closed', $agent)));
+    }
+
+    public function test_lead_stats_do_not_include_another_agents_leads(): void
+    {
+        $agent = User::factory()->create();
+        $otherAgent = User::factory()->create();
+        $this->assignLead(Lead::factory()->contacted()->create(), $agent);
+        $this->assignLead(Lead::factory()->contacted()->create(), $otherAgent);
+        $this->assignLead(Lead::factory()->lost()->create(), $otherAgent);
+        $otherClosed = $this->assignLead(Lead::factory()->qualified()->create(), $otherAgent);
+        Sale::factory()->closed()->for($otherClosed)->create();
+
+        Livewire::actingAs($agent)
+            ->test(LeadsStatsOverview::class)
+            ->assertSeeInOrder([
+                'Leads assigned',
+                '1',
+                'Working leads',
+                '1',
+                'Lost leads',
+                '0',
+                'Percent of leads closed',
+                '0%',
+            ]);
+    }
+
+    private function assignLead(Lead $lead, User $agent): Lead
+    {
+        $lead->agents()->attach($agent);
+
+        return $lead;
+    }
+
     private function assignAgent(Sale $sale, User $agent): Sale
     {
         $sale->agents()->attach($agent, [
@@ -178,6 +246,18 @@ class DashboardTest extends TestCase
     private function salesIndexUrl(string $tab, User $agent): string
     {
         return SaleResource::getUrl('index', [
+            'tab' => $tab,
+            'filters' => [
+                'agents' => [
+                    'value' => $agent->id,
+                ],
+            ],
+        ], isAbsolute: false);
+    }
+
+    private function leadsIndexUrl(string $tab, User $agent): string
+    {
+        return LeadResource::getUrl('index', [
             'tab' => $tab,
             'filters' => [
                 'agents' => [
