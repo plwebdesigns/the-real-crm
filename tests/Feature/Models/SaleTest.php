@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Models;
 
+use App\Enums\SaleType;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\User;
@@ -24,6 +25,7 @@ class SaleTest extends TestCase
             'postal_code' => '78701',
             'price' => '450000.00',
             'commission_percentage' => '3.0',
+            'sale_type' => SaleType::Seller,
             'sale_status_id' => SaleStatus::factory()->create()->id,
         ]);
     }

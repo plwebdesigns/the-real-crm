@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Enums\SaleType;
 use App\Filament\Resources\Sales\Pages\CreateSale;
 use App\Filament\Resources\Sales\SaleResource;
 use App\Models\Lead;
@@ -70,6 +71,7 @@ class SaleResourceTest extends TestCase
 
         $this->assertNotNull($sale);
         $this->assertSame($lead->id, $sale->lead_id);
+        $this->assertSame(SaleType::Seller, $sale->sale_type);
         $this->assertSame('3.0', $sale->commission_percentage);
         $this->assertSame('13500.00', $sale->gross_commission);
         $this->assertCount(1, $sale->agents);
@@ -91,6 +93,26 @@ class SaleResourceTest extends TestCase
             ])
             ->call('create')
             ->assertHasFormErrors(['agentAssignments']);
+
+        $this->assertDatabaseMissing(Sale::class, [
+            'street_address' => '123 Main St',
+        ]);
+    }
+
+    public function test_sale_requires_a_sale_type(): void
+    {
+        $agent = User::factory()->create();
+        $lead = Lead::factory()->create();
+        $status = SaleStatus::factory()->create();
+        $assignedAgent = User::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(CreateSale::class)
+            ->fillForm($this->validSaleForm($lead, $status, $assignedAgent, [
+                'sale_type' => null,
+            ]))
+            ->call('create')
+            ->assertHasFormErrors(['sale_type']);
 
         $this->assertDatabaseMissing(Sale::class, [
             'street_address' => '123 Main St',
@@ -183,6 +205,7 @@ class SaleResourceTest extends TestCase
         return [
             'lead_id' => $lead->id,
             'sale_status_id' => $status->id,
+            'sale_type' => SaleType::Seller,
             'street_address' => '123 Main St',
             'city' => 'Austin',
             'state' => 'TX',
