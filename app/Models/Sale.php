@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\SaleType;
 use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -101,5 +103,46 @@ class Sale extends Model
     public function agentAssignments(): HasMany
     {
         return $this->hasMany(SaleUser::class);
+    }
+
+    /**
+     * @param  Builder<Sale>  $query
+     * @return Builder<Sale>
+     */
+    #[Scope]
+    protected function assignedTo(Builder $query, User $user): Builder
+    {
+        return $query->whereHas(
+            'agents',
+            fn (Builder $agents): Builder => $agents->whereKey($user->id),
+        );
+    }
+
+    /**
+     * @param  Builder<Sale>  $query
+     * @return Builder<Sale>
+     */
+    #[Scope]
+    protected function closedInYear(Builder $query, int $year): Builder
+    {
+        return $query
+            ->whereHas(
+                'status',
+                fn (Builder $status): Builder => $status->where('slug', 'closed'),
+            )
+            ->whereYear('closed_at', $year);
+    }
+
+    /**
+     * @param  Builder<Sale>  $query
+     * @return Builder<Sale>
+     */
+    #[Scope]
+    protected function pending(Builder $query): Builder
+    {
+        return $query->whereHas(
+            'status',
+            fn (Builder $status): Builder => $status->where('slug', 'pending'),
+        );
     }
 }

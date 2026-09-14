@@ -56,4 +56,13 @@ class User extends Authenticatable implements FilamentUser
             ->withPivot(['commission_percent', 'net_commission'])
             ->withTimestamps();
     }
+
+    /**
+     * @return BelongsToMany<Lead, $this>
+     */
+    public function leads(): BelongsToMany
+    {
+        return $this->belongsToMany(Lead::class)
+            ->withTimestamps();
+    }
 }
