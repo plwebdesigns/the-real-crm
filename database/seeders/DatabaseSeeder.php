@@ -47,6 +47,12 @@ class DatabaseSeeder extends Seeder
                     'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 100),
                 ],
             ]);
+
+            if ($sale->status->name === 'Closed') {
+                // Assign admin to the lead
+                $admin->leads()->attach($sale->lead_id);
+            }
         });
+
     }
 }
