@@ -34,4 +34,56 @@ class LeadFactory extends Factory
             'notes' => fake()->optional()->paragraph(),
         ];
     }
+
+    /**
+     * Indicate that the lead is new.
+     */
+    public function asNew(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'lead_status_id' => LeadStatus::query()->firstOrCreate(
+                ['slug' => 'new'],
+                ['name' => 'New'],
+            )->id,
+        ]);
+    }
+
+    /**
+     * Indicate that the lead has been contacted.
+     */
+    public function contacted(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'lead_status_id' => LeadStatus::query()->firstOrCreate(
+                ['slug' => 'contacted'],
+                ['name' => 'Contacted'],
+            )->id,
+        ]);
+    }
+
+    /**
+     * Indicate that the lead is qualified.
+     */
+    public function qualified(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'lead_status_id' => LeadStatus::query()->firstOrCreate(
+                ['slug' => 'qualified'],
+                ['name' => 'Qualified'],
+            )->id,
+        ]);
+    }
+
+    /**
+     * Indicate that the lead is lost.
+     */
+    public function lost(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'lead_status_id' => LeadStatus::query()->firstOrCreate(
+                ['slug' => 'lost'],
+                ['name' => 'Lost'],
+            )->id,
+        ]);
+    }
 }

@@ -108,4 +108,42 @@ class LeadTest extends TestCase
 
         $lead->agents()->attach($agent);
     }
+
+    public function test_working_scope_includes_contacted_and_qualified_leads(): void
+    {
+        $contacted = Lead::factory()->contacted()->create();
+        $qualified = Lead::factory()->qualified()->create();
+        Lead::factory()->asNew()->create();
+        Lead::factory()->lost()->create();
+
+        $this->assertSame(
+            [$contacted->id, $qualified->id],
+            Lead::query()->working()->orderBy('id')->pluck('id')->all(),
+        );
+    }
+
+    public function test_lost_scope_includes_lost_leads(): void
+    {
+        $lost = Lead::factory()->lost()->create();
+        Lead::factory()->contacted()->create();
+
+        $this->assertSame(
+            [$lost->id],
+            Lead::query()->lost()->orderBy('id')->pluck('id')->all(),
+        );
+    }
+
+    public function test_closed_scope_includes_leads_with_a_closed_sale(): void
+    {
+        $closedLead = Lead::factory()->create();
+        Sale::factory()->closed()->for($closedLead)->create();
+        $pendingLead = Lead::factory()->create();
+        Sale::factory()->pending()->for($pendingLead)->create();
+        Lead::factory()->create();
+
+        $this->assertSame(
+            [$closedLead->id],
+            Lead::query()->closed()->orderBy('id')->pluck('id')->all(),
+        );
+    }
 }

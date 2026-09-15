@@ -123,13 +123,23 @@ class Sale extends Model
      * @return Builder<Sale>
      */
     #[Scope]
+    protected function closed(Builder $query): Builder
+    {
+        return $query->whereHas(
+            'status',
+            fn (Builder $status): Builder => $status->where('slug', 'closed'),
+        );
+    }
+
+    /**
+     * @param  Builder<Sale>  $query
+     * @return Builder<Sale>
+     */
+    #[Scope]
     protected function closedInYear(Builder $query, int $year): Builder
     {
         return $query
-            ->whereHas(
-                'status',
-                fn (Builder $status): Builder => $status->where('slug', 'closed'),
-            )
+            ->closed()
             ->whereYear('closed_at', $year);
     }
 

@@ -58,6 +58,11 @@ class LeadsTable
                 SelectFilter::make('lead_source_id')
                     ->label('Source')
                     ->relationship('source', 'name'),
+                SelectFilter::make('agents')
+                    ->label('Agent')
+                    ->relationship('agents', 'name')
+                    ->searchable()
+                    ->preload(),
             ])
             ->recordActions([
                 EditAction::make(),
