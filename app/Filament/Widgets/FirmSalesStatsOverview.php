@@ -3,32 +3,36 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Sales\SaleResource;
+use App\Models\Sale;
 use App\Models\User;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Number;
 
-class SalesStatsOverview extends StatsOverviewWidget
+class FirmSalesStatsOverview extends StatsOverviewWidget
 {
+    protected static bool $isDiscovered = false;
+
     protected static ?int $sort = 1;
 
     protected ?string $pollingInterval = null;
 
-    protected function getStats(): array
+    public static function canView(): bool
     {
         $user = auth()->user();
 
-        if (! $user instanceof User) {
-            return [];
-        }
+        return $user instanceof User && $user->is_admin;
+    }
 
-        $closed = $user->sales()
+    protected function getStats(): array
+    {
+        $closed = Sale::query()
             ->closedInYear(now()->year)
             ->toBase()
             ->selectRaw('count(*) as closed_count')
             ->selectRaw('coalesce(sum(sales.price), 0) as closed_volume')
-            ->selectRaw('coalesce(sum(sale_user.net_commission), 0) as net_commission')
+            ->selectRaw('coalesce(sum(sales.gross_commission), 0) as gross_commission')
             ->first();
 
         return [
@@ -36,7 +40,7 @@ class SalesStatsOverview extends StatsOverviewWidget
                 ->description('Year to date')
                 ->descriptionIcon(Heroicon::OutlinedCheckCircle)
                 ->color('success')
-                ->url($this->salesIndexUrl('closed', $user)),
+                ->url($this->salesIndexUrl('closed')),
             Stat::make(
                 'Closed volume',
                 Number::currency((float) ($closed->closed_volume ?? 0), 'USD'),
@@ -45,32 +49,27 @@ class SalesStatsOverview extends StatsOverviewWidget
                 ->descriptionIcon(Heroicon::OutlinedHomeModern)
                 ->color('success'),
             Stat::make(
-                'Net commission',
-                Number::currency((float) ($closed->net_commission ?? 0), 'USD'),
+                'Gross commission',
+                Number::currency((float) ($closed->gross_commission ?? 0), 'USD'),
             )
                 ->description('Year to date')
                 ->descriptionIcon(Heroicon::OutlinedBanknotes)
                 ->color('success'),
             Stat::make(
                 'Pending sales',
-                (string) $user->sales()->pending()->count(),
+                (string) Sale::query()->pending()->count(),
             )
                 ->description('Open pipeline')
                 ->descriptionIcon(Heroicon::OutlinedClock)
                 ->color('warning')
-                ->url($this->salesIndexUrl('pending', $user)),
+                ->url($this->salesIndexUrl('pending')),
         ];
     }
 
-    private function salesIndexUrl(string $tab, User $user): string
+    private function salesIndexUrl(string $tab): string
     {
         return SaleResource::getUrl('index', [
             'tab' => $tab,
-            'filters' => [
-                'agents' => [
-                    'value' => $user->id,
-                ],
-            ],
         ], isAbsolute: false);
     }
 }
