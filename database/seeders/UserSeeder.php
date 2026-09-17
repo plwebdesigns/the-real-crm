@@ -20,7 +20,14 @@ class UserSeeder extends Seeder
             'password' => Hash::make('Password123'),
         ]);
 
+        // Create non-admin user for demo purposes
+        User::factory()->create([
+            'name' => 'Demo User',
+            'email' => 'demo@example.com',
+            'password' => Hash::make('Password123'),
+        ]);
+
         // Create non-admin users
-        User::factory()->count(9)->create();
+        User::factory()->count(8)->create();
     }
 }
