@@ -6,8 +6,6 @@ use App\Enums\SaleType;
 use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
-use App\Models\SaleUser;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -28,16 +26,6 @@ class SaleFactory extends Factory
                 );
 
                 $this->fillClosedAtWhenStatusIsClosed($sale);
-            })
-            ->afterCreating(function (Sale $sale): void {
-                if ($sale->agents()->exists()) {
-                    return;
-                }
-
-                $sale->agents()->attach(User::factory()->create(), [
-                    'commission_percent' => 100,
-                    'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 100),
-                ]);
             });
     }
 
