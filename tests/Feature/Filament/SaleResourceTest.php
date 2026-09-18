@@ -8,6 +8,7 @@ use App\Filament\Resources\Sales\Pages\EditSale;
 use App\Filament\Resources\Sales\Pages\ListSales;
 use App\Filament\Resources\Sales\SaleResource;
 use App\Models\Lead;
+use App\Models\LeadSource;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\SaleUser;
@@ -146,6 +147,30 @@ class SaleResourceTest extends TestCase
                 $closedSale,
                 $otherAgentPendingSale,
             ]);
+    }
+
+    public function test_source_filter_shows_only_sales_from_the_selected_source(): void
+    {
+        $agent = User::factory()->create();
+        $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
+        $website = LeadSource::factory()->create(['name' => 'Website']);
+        $zillowSale = Sale::factory()->for(
+            Lead::factory()->for($zillow, 'source'),
+        )->create();
+        $websiteSale = Sale::factory()->for(
+            Lead::factory()->for($website, 'source'),
+        )->create();
+
+        Livewire::actingAs($agent)
+            ->test(ListSales::class, [
+                'tableFilters' => [
+                    'source' => [
+                        'value' => $zillow->id,
+                    ],
+                ],
+            ])
+            ->assertCanSeeTableRecords([$zillowSale])
+            ->assertCanNotSeeTableRecords([$websiteSale]);
     }
 
     public function test_agent_can_create_a_sale_with_an_agent_assignment(): void

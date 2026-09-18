@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Filament\Widgets\AgentPerformanceTable;
 use App\Filament\Widgets\FirmLeadsStatsOverview;
 use App\Filament\Widgets\FirmSalesStatsOverview;
+use App\Filament\Widgets\LeadSourcePerformanceTable;
 use App\Models\User;
 use BackedEnum;
 use Filament\Pages\Dashboard;
@@ -38,6 +39,7 @@ class Analytics extends Dashboard
             FirmSalesStatsOverview::class,
             FirmLeadsStatsOverview::class,
             AgentPerformanceTable::class,
+            LeadSourcePerformanceTable::class,
         ];
     }
 }
