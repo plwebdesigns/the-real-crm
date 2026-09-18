@@ -73,6 +73,11 @@ class SalesTable
                     ->relationship('agents', 'name')
                     ->searchable()
                     ->preload(),
+                SelectFilter::make('source')
+                    ->label('Source')
+                    ->relationship('lead.source', 'name')
+                    ->searchable()
+                    ->preload(),
             ])
             ->recordActions([
                 EditAction::make(),

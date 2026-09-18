@@ -9,9 +9,11 @@ use App\Filament\Widgets\AgentPerformanceTable;
 use App\Filament\Widgets\AssignedLeadsTable;
 use App\Filament\Widgets\FirmLeadsStatsOverview;
 use App\Filament\Widgets\FirmSalesStatsOverview;
+use App\Filament\Widgets\LeadSourcePerformanceTable;
 use App\Filament\Widgets\LeadsStatsOverview;
 use App\Filament\Widgets\SalesStatsOverview;
 use App\Models\Lead;
+use App\Models\LeadSource;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\SaleUser;
@@ -49,6 +51,7 @@ class AnalyticsTest extends TestCase
             ->assertSeeLivewire(FirmSalesStatsOverview::class)
             ->assertSeeLivewire(FirmLeadsStatsOverview::class)
             ->assertSeeLivewire(AgentPerformanceTable::class)
+            ->assertSeeLivewire(LeadSourcePerformanceTable::class)
             ->assertDontSeeLivewire(SalesStatsOverview::class)
             ->assertDontSeeLivewire(LeadsStatsOverview::class)
             ->assertDontSeeLivewire(AssignedLeadsTable::class);
@@ -64,7 +67,8 @@ class AnalyticsTest extends TestCase
             ->assertSeeLivewire(SalesStatsOverview::class)
             ->assertDontSeeLivewire(FirmSalesStatsOverview::class)
             ->assertDontSeeLivewire(FirmLeadsStatsOverview::class)
-            ->assertDontSeeLivewire(AgentPerformanceTable::class);
+            ->assertDontSeeLivewire(AgentPerformanceTable::class)
+            ->assertDontSeeLivewire(LeadSourcePerformanceTable::class);
     }
 
     public function test_admin_sees_year_to_date_firm_closed_and_pending_sales_stats(): void
@@ -315,6 +319,122 @@ class AnalyticsTest extends TestCase
             ->assertSeeHtml(e($this->agentSalesIndexUrl($agent)));
     }
 
+    public function test_lead_source_performance_table_shows_each_sources_own_numbers(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->admin()->create();
+        $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
+        $website = LeadSource::factory()->create(['name' => 'Website']);
+        $openHouse = LeadSource::factory()->create(['name' => 'Open House']);
+        $closedStatus = $this->closedStatus();
+        $pendingStatus = $this->pendingStatus();
+        $zillowClosedLead = Lead::factory()->qualified()->for($zillow, 'source')->create();
+        $zillowPendingLead = Lead::factory()->contacted()->for($zillow, 'source')->create();
+        Sale::factory()->closed()->withoutAgents()->for($zillowClosedLead)->recycle($closedStatus)->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        Sale::factory()->pending()->withoutAgents()->for($zillowPendingLead)->recycle($pendingStatus)->create([
+            'price' => '300000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        $websiteClosedLead = Lead::factory()->qualified()->for($website, 'source')->create();
+        Sale::factory()->closed()->withoutAgents()->for($websiteClosedLead)->recycle($closedStatus)->create([
+            'price' => '200000.00',
+            'commission_percentage' => '3.0',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LeadSourcePerformanceTable::class)
+            ->assertCanSeeTableRecords([$zillow, $website, $openHouse])
+            ->assertTableColumnStateSet('closed_sales_count', 1, $zillow)
+            ->assertTableColumnStateSet('closed_volume', '450000.00', $zillow)
+            ->assertTableColumnStateSet('gross_commission', '13500.00', $zillow)
+            ->assertTableColumnStateSet('pending_sales_count', 1, $zillow)
+            ->assertTableColumnStateSet('leads_count', 2, $zillow)
+            ->assertTableColumnStateSet('closed_percent', '50%', $zillow)
+            ->assertTableColumnStateSet('closed_sales_count', 1, $website)
+            ->assertTableColumnStateSet('closed_volume', '200000.00', $website)
+            ->assertTableColumnStateSet('gross_commission', '6000.00', $website)
+            ->assertTableColumnStateSet('pending_sales_count', 0, $website)
+            ->assertTableColumnStateSet('leads_count', 1, $website)
+            ->assertTableColumnStateSet('closed_percent', '100%', $website)
+            ->assertTableColumnStateSet('closed_sales_count', 0, $openHouse)
+            ->assertTableColumnStateSet('closed_volume', '0.00', $openHouse)
+            ->assertTableColumnStateSet('gross_commission', '0.00', $openHouse)
+            ->assertTableColumnStateSet('pending_sales_count', 0, $openHouse)
+            ->assertTableColumnStateSet('leads_count', 0, $openHouse)
+            ->assertTableColumnStateSet('closed_percent', '0%', $openHouse);
+    }
+
+    public function test_lead_source_performance_table_does_not_include_last_years_closed_sale(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->admin()->create();
+        $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
+        $closedStatus = $this->closedStatus();
+        $thisYearLead = Lead::factory()->qualified()->for($zillow, 'source')->create();
+        $lastYearLead = Lead::factory()->qualified()->for($zillow, 'source')->create();
+        Sale::factory()->closed()->withoutAgents()->for($thisYearLead)->recycle($closedStatus)->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        Sale::factory()->closed()->withoutAgents()->for($lastYearLead)->recycle($closedStatus)->create([
+            'price' => '800000.00',
+            'commission_percentage' => '3.0',
+            'closed_at' => now()->subYear(),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LeadSourcePerformanceTable::class)
+            ->assertTableColumnStateSet('closed_sales_count', 1, $zillow)
+            ->assertTableColumnStateSet('closed_volume', '450000.00', $zillow)
+            ->assertTableColumnStateSet('gross_commission', '13500.00', $zillow);
+    }
+
+    public function test_lead_source_performance_table_counts_a_split_sale_once(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->admin()->create();
+        $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
+        $firstAgent = User::factory()->create();
+        $secondAgent = User::factory()->create();
+        $lead = Lead::factory()->qualified()->for($zillow, 'source')->create();
+        $sale = Sale::factory()->closed()->withoutAgents()->for($lead)->recycle($this->closedStatus())->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        $sale->agents()->attach([
+            $firstAgent->id => [
+                'commission_percent' => 50,
+                'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 50),
+            ],
+            $secondAgent->id => [
+                'commission_percent' => 50,
+                'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 50),
+            ],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LeadSourcePerformanceTable::class)
+            ->assertTableColumnStateSet('closed_sales_count', 1, $zillow)
+            ->assertTableColumnStateSet('closed_volume', '450000.00', $zillow)
+            ->assertTableColumnStateSet('gross_commission', '13500.00', $zillow);
+    }
+
+    public function test_lead_source_name_links_to_the_closed_sales_list_for_that_source(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $source = LeadSource::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(LeadSourcePerformanceTable::class)
+            ->assertSeeHtml(e($this->sourceSalesIndexUrl($source)));
+    }
+
     private function assignLead(Lead $lead, User $agent): Lead
     {
         $lead->agents()->attach($agent);
@@ -346,6 +466,18 @@ class AnalyticsTest extends TestCase
             'filters' => [
                 'agents' => [
                     'value' => $agent->id,
+                ],
+            ],
+        ], isAbsolute: false);
+    }
+
+    private function sourceSalesIndexUrl(LeadSource $source): string
+    {
+        return SaleResource::getUrl('index', [
+            'tab' => 'closed',
+            'filters' => [
+                'source' => [
+                    'value' => $source->id,
                 ],
             ],
         ], isAbsolute: false);
