@@ -19,6 +19,7 @@ class LookupSeeder extends Seeder
             ['name' => 'Contacted', 'slug' => 'contacted'],
             ['name' => 'Qualified', 'slug' => 'qualified'],
             ['name' => 'Lost', 'slug' => 'lost'],
+            ['name' => 'Converted', 'slug' => 'converted'],
         ] as $status) {
             LeadStatus::query()->updateOrCreate(['slug' => $status['slug']], $status);
         }
@@ -36,7 +37,12 @@ class LookupSeeder extends Seeder
             ['name' => 'Referral', 'slug' => 'referral'],
             ['name' => 'Zillow', 'slug' => 'zillow'],
             ['name' => 'Open House', 'slug' => 'open-house'],
-            ['name' => 'Other', 'slug' => 'other'],
+            ['name' => 'Facebook', 'slug' => 'facebook'],
+            ['name' => 'Instagram', 'slug' => 'instagram'],
+            ['name' => 'Twitter', 'slug' => 'twitter'],
+            ['name' => 'LinkedIn', 'slug' => 'linkedin'],
+            ['name' => 'YouTube', 'slug' => 'youtube'],
+            ['name' => 'Car Ads', 'slug' => 'car-ads'],
         ] as $source) {
             LeadSource::query()->updateOrCreate(['slug' => $source['slug']], $source);
         }
