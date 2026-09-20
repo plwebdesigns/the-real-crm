@@ -17,6 +17,10 @@ return [
 
     'company_name' => env('COMPANY_NAME'),
 
+    'brokerage_fee' => (float) env('BROKERAGE_FEE', 250),
+
+    'brokerage_fee_type' => env('BROKERAGE_FEE_TYPE', 'fixed'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

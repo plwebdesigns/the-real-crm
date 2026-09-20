@@ -6,6 +6,7 @@ use App\Enums\SaleType;
 use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -24,8 +25,14 @@ class SaleFactory extends Factory
                     $sale->price,
                     $sale->commission_percentage,
                 );
+                $sale->brokerage_fee = Sale::brokerageFeeFor($sale->gross_commission);
 
                 $this->fillClosedAtWhenStatusIsClosed($sale);
+            })
+            ->afterCreating(function (Sale $sale): void {
+                $sale->agents()->attach(User::factory()->create(), [
+                    'commission_percent' => 100,
+                ]);
             });
     }
 

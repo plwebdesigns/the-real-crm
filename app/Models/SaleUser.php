@@ -31,7 +31,10 @@ class SaleUser extends Pivot
     {
         static::saving(function (SaleUser $assignment): void {
             $assignment->net_commission = self::netCommissionFor(
-                $assignment->sale?->gross_commission,
+                Sale::remainingCommissionFor(
+                    $assignment->sale?->gross_commission,
+                    $assignment->sale?->brokerage_fee,
+                ),
                 $assignment->commission_percent,
             );
         });

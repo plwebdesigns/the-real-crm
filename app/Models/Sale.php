@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BrokerageFeeType;
 use App\Enums\SaleType;
 use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'price',
     'commission_percentage',
     'gross_commission',
+    'brokerage_fee',
     'closed_at',
 ])]
 class Sale extends Model
@@ -41,6 +43,7 @@ class Sale extends Model
             'price' => 'decimal:2',
             'commission_percentage' => 'decimal:1',
             'gross_commission' => 'decimal:2',
+            'brokerage_fee' => 'decimal:2',
             'closed_at' => 'date',
         ];
     }
@@ -52,10 +55,11 @@ class Sale extends Model
                 $sale->price,
                 $sale->commission_percentage,
             );
+            $sale->brokerage_fee = self::brokerageFeeFor($sale->gross_commission);
         });
 
         static::saved(function (Sale $sale): void {
-            if (! $sale->wasChanged(['price', 'commission_percentage'])) {
+            if (! $sale->wasChanged(['price', 'commission_percentage', 'brokerage_fee'])) {
                 return;
             }
 
@@ -68,6 +72,25 @@ class Sale extends Model
     public static function grossCommissionFor(mixed $price, mixed $percentage): string
     {
         return number_format(round(((float) $price) * ((float) $percentage) / 100, 2), 2, '.', '');
+    }
+
+    public static function brokerageFeeFor(mixed $grossCommission): string
+    {
+        $amount = (float) config('app.brokerage_fee');
+        $type = BrokerageFeeType::from((string) config('app.brokerage_fee_type'));
+        $gross = (float) $grossCommission;
+
+        $fee = match ($type) {
+            BrokerageFeeType::Percent => $gross * $amount / 100,
+            BrokerageFeeType::Fixed => $amount,
+        };
+
+        return number_format(round(min(max($fee, 0), $gross), 2), 2, '.', '');
+    }
+
+    public static function remainingCommissionFor(mixed $grossCommission, mixed $brokerageFee): string
+    {
+        return number_format(round(max(0, ((float) $grossCommission) - ((float) $brokerageFee)), 2), 2, '.', '');
     }
 
     /**

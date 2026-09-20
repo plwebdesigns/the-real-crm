@@ -23,6 +23,7 @@ return new class extends Migration
             $table->decimal('price', 12, 2);
             $table->decimal('commission_percentage', 3, 1);
             $table->decimal('gross_commission', 12, 2);
+            $table->decimal('brokerage_fee', 12, 2);
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
         });

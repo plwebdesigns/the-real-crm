@@ -48,6 +48,9 @@ class SalesTable
                 TextColumn::make('gross_commission')
                     ->money('USD')
                     ->sortable(),
+                TextColumn::make('brokerage_fee')
+                    ->money('USD')
+                    ->sortable(),
                 TextColumn::make('agents.name')
                     ->label('Agents')
                     ->badge()
