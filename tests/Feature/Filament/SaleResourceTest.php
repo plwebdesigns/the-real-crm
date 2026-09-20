@@ -193,9 +193,10 @@ class SaleResourceTest extends TestCase
         $this->assertSame(SaleType::Seller, $sale->sale_type);
         $this->assertSame('3.0', $sale->commission_percentage);
         $this->assertSame('13500.00', $sale->gross_commission);
+        $this->assertSame('250.00', $sale->brokerage_fee);
         $this->assertCount(1, $sale->agents);
         $this->assertSame(100, $sale->agents->first()?->pivot->commission_percent);
-        $this->assertSame('13500.00', $sale->agents->first()?->pivot->net_commission);
+        $this->assertSame('13250.00', $sale->agents->first()?->pivot->net_commission);
     }
 
     public function test_closed_sale_requires_a_closed_at_date(): void
@@ -414,7 +415,10 @@ class SaleResourceTest extends TestCase
     {
         $sale->agents()->attach($agent, [
             'commission_percent' => 100,
-            'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 100),
+            'net_commission' => SaleUser::netCommissionFor(
+                Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                100,
+            ),
         ]);
 
         return $sale;

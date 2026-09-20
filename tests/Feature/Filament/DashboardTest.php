@@ -69,7 +69,7 @@ class DashboardTest extends TestCase
             ->assertSee('Closed sales')
             ->assertSee('2')
             ->assertSee('$650,000.00')
-            ->assertSee('$19,500.00')
+            ->assertSee('$19,000.00')
             ->assertSee('Pending sales')
             ->assertSee('1')
             ->assertSee('Year to date')
@@ -111,7 +111,7 @@ class DashboardTest extends TestCase
         Livewire::actingAs($agent)
             ->test(SalesStatsOverview::class)
             ->assertSee('$450,000.00')
-            ->assertSee('$13,500.00')
+            ->assertSee('$13,250.00')
             ->assertDontSee('$800,000.00')
             ->assertDontSee('$24,000.00');
     }
@@ -141,7 +141,7 @@ class DashboardTest extends TestCase
         Livewire::actingAs($agent)
             ->test(SalesStatsOverview::class)
             ->assertSee('$450,000.00')
-            ->assertSee('$13,500.00')
+            ->assertSee('$13,250.00')
             ->assertDontSee('$800,000.00')
             ->assertDontSee('$24,000.00');
     }
@@ -237,7 +237,10 @@ class DashboardTest extends TestCase
     {
         $sale->agents()->attach($agent, [
             'commission_percent' => 100,
-            'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 100),
+            'net_commission' => SaleUser::netCommissionFor(
+                Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                100,
+            ),
         ]);
 
         return $sale;

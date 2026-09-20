@@ -81,6 +81,12 @@ class SaleForm
                     ->numeric()
                     ->disabled()
                     ->dehydrated(false),
+                TextInput::make('brokerage_fee')
+                    ->label('Brokerage fee')
+                    ->prefix('$')
+                    ->numeric()
+                    ->disabled()
+                    ->dehydrated(false),
                 DatePicker::make('closed_at')
                     ->required(fn (Get $get): bool => self::isClosedStatus($get('sale_status_id'))),
                 Repeater::make('agentAssignments')
@@ -110,7 +116,10 @@ class SaleForm
                                 $set(
                                     'net_commission',
                                     SaleUser::netCommissionFor(
-                                        $get('../../gross_commission'),
+                                        Sale::remainingCommissionFor(
+                                            $get('../../gross_commission'),
+                                            $get('../../brokerage_fee'),
+                                        ),
                                         $get('commission_percent'),
                                     ),
                                 );
@@ -158,14 +167,16 @@ class SaleForm
             $get('price'),
             $get('commission_percentage'),
         );
+        $brokerageFee = Sale::brokerageFeeFor($grossCommission);
 
         $set('gross_commission', $grossCommission);
+        $set('brokerage_fee', $brokerageFee);
 
         foreach ($get('agentAssignments') ?? [] as $key => $assignment) {
             $set(
                 "agentAssignments.{$key}.net_commission",
                 SaleUser::netCommissionFor(
-                    $grossCommission,
+                    Sale::remainingCommissionFor($grossCommission, $brokerageFee),
                     is_array($assignment) ? ($assignment['commission_percent'] ?? null) : null,
                 ),
             );

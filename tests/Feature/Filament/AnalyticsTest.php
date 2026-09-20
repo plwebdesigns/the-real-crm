@@ -129,11 +129,17 @@ class AnalyticsTest extends TestCase
         $sale->agents()->attach([
             $firstAgent->id => [
                 'commission_percent' => 50,
-                'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 50),
+                'net_commission' => SaleUser::netCommissionFor(
+                    Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                    50,
+                ),
             ],
             $secondAgent->id => [
                 'commission_percent' => 50,
-                'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 50),
+                'net_commission' => SaleUser::netCommissionFor(
+                    Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                    50,
+                ),
             ],
         ]);
 
@@ -265,14 +271,16 @@ class AnalyticsTest extends TestCase
             ->assertCanSeeTableRecords([$firstAgent, $secondAgent, $admin])
             ->assertTableColumnStateSet('closed_sales_count', 1, $firstAgent)
             ->assertTableColumnStateSet('closed_volume', '450000.00', $firstAgent)
-            ->assertTableColumnStateSet('net_commission', '13500.00', $firstAgent)
+            ->assertTableColumnStateSet('brokerage_fee', '250.00', $firstAgent)
+            ->assertTableColumnStateSet('net_commission', '13250.00', $firstAgent)
             ->assertTableColumnStateSet('pending_sales_count', 1, $firstAgent)
             ->assertTableColumnStateSet('assigned_leads_count', 2, $firstAgent)
             ->assertTableColumnStateSet('working_leads_count', 1, $firstAgent)
             ->assertTableColumnStateSet('closed_percent', '0%', $firstAgent)
             ->assertTableColumnStateSet('closed_sales_count', 1, $secondAgent)
             ->assertTableColumnStateSet('closed_volume', '200000.00', $secondAgent)
-            ->assertTableColumnStateSet('net_commission', '6000.00', $secondAgent)
+            ->assertTableColumnStateSet('brokerage_fee', '250.00', $secondAgent)
+            ->assertTableColumnStateSet('net_commission', '5750.00', $secondAgent)
             ->assertTableColumnStateSet('pending_sales_count', 0, $secondAgent)
             ->assertTableColumnStateSet('assigned_leads_count', 1, $secondAgent)
             ->assertTableColumnStateSet('working_leads_count', 1, $secondAgent)
@@ -293,11 +301,17 @@ class AnalyticsTest extends TestCase
         $sale->agents()->attach([
             $firstAgent->id => [
                 'commission_percent' => 50,
-                'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 50),
+                'net_commission' => SaleUser::netCommissionFor(
+                    Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                    50,
+                ),
             ],
             $secondAgent->id => [
                 'commission_percent' => 50,
-                'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 50),
+                'net_commission' => SaleUser::netCommissionFor(
+                    Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                    50,
+                ),
             ],
         ]);
 
@@ -305,8 +319,10 @@ class AnalyticsTest extends TestCase
             ->test(AgentPerformanceTable::class)
             ->assertTableColumnStateSet('closed_volume', '450000.00', $firstAgent)
             ->assertTableColumnStateSet('closed_volume', '450000.00', $secondAgent)
-            ->assertTableColumnStateSet('net_commission', '6750.00', $firstAgent)
-            ->assertTableColumnStateSet('net_commission', '6750.00', $secondAgent);
+            ->assertTableColumnStateSet('brokerage_fee', '250.00', $firstAgent)
+            ->assertTableColumnStateSet('brokerage_fee', '250.00', $secondAgent)
+            ->assertTableColumnStateSet('net_commission', '6625.00', $firstAgent)
+            ->assertTableColumnStateSet('net_commission', '6625.00', $secondAgent);
     }
 
     public function test_agent_name_links_to_the_closed_sales_list_for_that_agent(): void
@@ -410,11 +426,17 @@ class AnalyticsTest extends TestCase
         $sale->agents()->attach([
             $firstAgent->id => [
                 'commission_percent' => 50,
-                'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 50),
+                'net_commission' => SaleUser::netCommissionFor(
+                    Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                    50,
+                ),
             ],
             $secondAgent->id => [
                 'commission_percent' => 50,
-                'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 50),
+                'net_commission' => SaleUser::netCommissionFor(
+                    Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                    50,
+                ),
             ],
         ]);
 
@@ -446,7 +468,10 @@ class AnalyticsTest extends TestCase
     {
         $sale->agents()->attach($agent, [
             'commission_percent' => 100,
-            'net_commission' => SaleUser::netCommissionFor($sale->gross_commission, 100),
+            'net_commission' => SaleUser::netCommissionFor(
+                Sale::remainingCommissionFor($sale->gross_commission, $sale->brokerage_fee),
+                100,
+            ),
         ]);
 
         return $sale;

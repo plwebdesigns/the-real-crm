@@ -49,6 +49,12 @@ class AgentPerformanceTable extends TableWidget
                     ->default(0)
                     ->color('success')
                     ->sortable(),
+                TextColumn::make('brokerage_fee')
+                    ->label('Brokerage fees')
+                    ->money('USD')
+                    ->default(0)
+                    ->color('success')
+                    ->sortable(),
                 TextColumn::make('net_commission')
                     ->label('Net commission')
                     ->money('USD')
@@ -107,6 +113,12 @@ class AgentPerformanceTable extends TableWidget
                 ],
                 'price',
             )
+            ->withSum(
+                [
+                    'sales as brokerage_fee' => fn (Builder $sales): Builder => $sales->closedInYear($year),
+                ],
+                'brokerage_fee',
+            )
             ->addSelect([
                 'net_commission' => SaleUser::query()
                     ->selectRaw('coalesce(sum(sale_user.net_commission), 0)')
@@ -118,6 +130,7 @@ class AgentPerformanceTable extends TableWidget
             ])
             ->withCasts([
                 'closed_volume' => 'decimal:2',
+                'brokerage_fee' => 'decimal:2',
                 'net_commission' => 'decimal:2',
             ]);
     }
