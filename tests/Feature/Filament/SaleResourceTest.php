@@ -190,7 +190,7 @@ class SaleResourceTest extends TestCase
 
         $this->assertNotNull($sale);
         $this->assertSame($lead->id, $sale->lead_id);
-        $this->assertSame(SaleType::Seller, $sale->sale_type);
+        $this->assertSame($lead->type, $sale->sale_type);
         $this->assertSame('3.0', $sale->commission_percentage);
         $this->assertSame('13500.00', $sale->gross_commission);
         $this->assertSame('250.00', $sale->brokerage_fee);
@@ -288,20 +288,38 @@ class SaleResourceTest extends TestCase
         ]);
     }
 
-    public function test_sale_requires_a_sale_type(): void
+    public function test_sale_copies_type_from_the_lead(): void
     {
         $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        $lead = Lead::factory()->create(['type' => SaleType::Buyer]);
         $status = SaleStatus::factory()->create();
         $assignedAgent = User::factory()->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
-            ->fillForm($this->validSaleForm($lead, $status, $assignedAgent, [
-                'sale_type' => null,
-            ]))
+            ->fillForm($this->validSaleForm($lead, $status, $assignedAgent))
             ->call('create')
-            ->assertHasFormErrors(['sale_type']);
+            ->assertHasNoFormErrors();
+
+        $sale = Sale::query()->where('street_address', '123 Main St')->first();
+
+        $this->assertNotNull($sale);
+        $this->assertSame(SaleType::Buyer, $sale->sale_type);
+    }
+
+    public function test_sale_rejects_a_lead_that_already_has_a_sale(): void
+    {
+        $agent = User::factory()->create();
+        $lead = Lead::factory()->create();
+        Sale::factory()->for($lead)->create();
+        $status = SaleStatus::factory()->create();
+        $assignedAgent = User::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(CreateSale::class)
+            ->fillForm($this->validSaleForm($lead, $status, $assignedAgent))
+            ->call('create')
+            ->assertHasFormErrors(['lead_id']);
 
         $this->assertDatabaseMissing(Sale::class, [
             'street_address' => '123 Main St',
@@ -394,7 +412,6 @@ class SaleResourceTest extends TestCase
         return [
             'lead_id' => $lead->id,
             'sale_status_id' => $status->id,
-            'sale_type' => SaleType::Seller,
             'street_address' => '123 Main St',
             'city' => 'Austin',
             'state' => 'TX',

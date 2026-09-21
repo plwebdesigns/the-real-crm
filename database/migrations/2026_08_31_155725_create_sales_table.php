@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lead_id')->constrained()->restrictOnDelete();
+            $table->foreignId('lead_id')->unique()->constrained()->restrictOnDelete();
             $table->foreignId('sale_status_id')->constrained()->restrictOnDelete();
             $table->string('sale_type');
             $table->string('street_address');

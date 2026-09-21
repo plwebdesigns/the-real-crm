@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\SaleUser;
@@ -16,11 +17,16 @@ class SaleSeeder extends Seeder
     public function run(): void
     {
         $users = User::all();
-        $recycleables = [SaleStatus::all()];
-        $users->each(function ($user) use ($recycleables) {
-            array_push($recycleables, $user->leads);
-            $sales = Sale::factory()->withoutAgents()->count(4)->recycle($recycleables)->create();
-            $sales->each(function ($sale) use ($user) {
+        $statuses = SaleStatus::all();
+
+        $users->each(function (User $user) use ($statuses): void {
+            $user->leads->unique('id')->take(4)->each(function (Lead $lead) use ($user, $statuses): void {
+                $sale = Sale::factory()
+                    ->withoutAgents()
+                    ->for($lead)
+                    ->recycle([$statuses])
+                    ->create();
+
                 $sale->agents()->attach($user, [
                     'commission_percent' => 100,
                     'net_commission' => SaleUser::netCommissionFor(

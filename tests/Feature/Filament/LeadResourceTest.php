@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Enums\SaleType;
 use App\Filament\Resources\Leads\LeadResource;
 use App\Filament\Resources\Leads\Pages\CreateLead;
 use App\Filament\Resources\Leads\Pages\EditLead;
@@ -47,6 +48,7 @@ class LeadResourceTest extends TestCase
                 'last_name' => 'Lovelace',
                 'email' => 'ada@example.com',
                 'phone' => '555-0100',
+                'type' => SaleType::Buyer,
                 'lead_status_id' => $status->id,
                 'lead_source_id' => $source->id,
             ])
@@ -57,6 +59,7 @@ class LeadResourceTest extends TestCase
             'first_name' => 'Ada',
             'last_name' => 'Lovelace',
             'email' => 'ada@example.com',
+            'type' => SaleType::Buyer,
             'lead_status_id' => $status->id,
             'lead_source_id' => $source->id,
         ]);
@@ -79,6 +82,7 @@ class LeadResourceTest extends TestCase
             ->fillForm([
                 'first_name' => 'Ada',
                 'last_name' => 'Lovelace',
+                'type' => SaleType::Seller,
                 'lead_status_id' => $status->id,
                 'lead_source_id' => $source->id,
                 'location' => 'Austin',
@@ -96,6 +100,7 @@ class LeadResourceTest extends TestCase
         $lead = Lead::query()->where('first_name', 'Ada')->first();
 
         $this->assertNotNull($lead);
+        $this->assertSame(SaleType::Seller, $lead->type);
         $this->assertSame('Austin', $lead->location);
         $this->assertSame('Single Family', $lead->property_type);
         $this->assertSame('$300k-$500k', $lead->price_range);
@@ -119,6 +124,7 @@ class LeadResourceTest extends TestCase
             ->fillForm([
                 'first_name' => 'Ada',
                 'last_name' => 'Lovelace',
+                'type' => SaleType::Buyer,
                 'lead_status_id' => $status->id,
                 'lead_source_id' => $source->id,
                 'agents' => [$listingAgent->id, $buyersAgent->id],
@@ -133,6 +139,30 @@ class LeadResourceTest extends TestCase
         $this->assertTrue($lead->agents->contains($listingAgent));
         $this->assertTrue($lead->agents->contains($buyersAgent));
         $this->assertFalse($lead->agents->contains($agent));
+    }
+
+    public function test_lead_requires_a_type(): void
+    {
+        $agent = User::factory()->create();
+        $status = LeadStatus::factory()->create();
+        $source = LeadSource::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(CreateLead::class)
+            ->fillForm([
+                'first_name' => 'Ada',
+                'last_name' => 'Lovelace',
+                'type' => null,
+                'lead_status_id' => $status->id,
+                'lead_source_id' => $source->id,
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['type']);
+
+        $this->assertDatabaseMissing(Lead::class, [
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+        ]);
     }
 
     public function test_agent_can_update_assigned_agents_on_a_lead(): void
@@ -232,6 +262,44 @@ class LeadResourceTest extends TestCase
             ])
             ->assertCanSeeTableRecords([$closed])
             ->assertCanNotSeeTableRecords([$pending, $otherClosed]);
+    }
+
+    public function test_create_related_lead_prefills_contact_fields_and_opposite_type(): void
+    {
+        $agent = User::factory()->create();
+        $listingAgent = User::factory()->create();
+        $source = LeadSource::factory()->create();
+        $lead = Lead::factory()->create([
+            'first_name' => 'Jane',
+            'last_name' => 'Doe',
+            'email' => 'jane@example.com',
+            'phone' => '555-0100',
+            'type' => SaleType::Seller,
+            'lead_source_id' => $source->id,
+        ]);
+        $lead->agents()->attach([$listingAgent->id]);
+
+        Livewire::actingAs($agent)
+            ->test(CreateLead::class, ['related' => $lead->id])
+            ->assertFormSet([
+                'first_name' => 'Jane',
+                'last_name' => 'Doe',
+                'email' => 'jane@example.com',
+                'phone' => '555-0100',
+                'lead_source_id' => $source->id,
+                'type' => SaleType::Buyer,
+                'agents' => [$listingAgent->id],
+            ]);
+    }
+
+    public function test_edit_page_links_to_create_related_lead(): void
+    {
+        $agent = User::factory()->create();
+        $lead = Lead::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(EditLead::class, ['record' => $lead->getRouteKey()])
+            ->assertActionExists('createRelatedLead');
     }
 
     private function assignLead(Lead $lead, User $agent): Lead

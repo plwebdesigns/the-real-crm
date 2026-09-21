@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Models;
 
+use App\Enums\SaleType;
 use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\Sale;
+use App\Models\SaleStatus;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -15,15 +17,22 @@ class LeadTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_lead_can_have_multiple_sales(): void
+    public function test_lead_cannot_have_more_than_one_sale(): void
     {
         $lead = Lead::factory()->create();
+        Sale::factory()->for($lead)->create();
 
-        $sales = Sale::factory()->count(2)->for($lead)->create();
+        $this->expectException(QueryException::class);
 
-        $this->assertCount(2, $lead->sales);
-        $this->assertTrue($lead->sales->contains($sales[0]));
-        $this->assertTrue($lead->sales->contains($sales[1]));
+        Sale::factory()->for($lead)->create();
+    }
+
+    public function test_lead_has_one_sale(): void
+    {
+        $lead = Lead::factory()->create();
+        $sale = Sale::factory()->for($lead)->create();
+
+        $this->assertTrue($lead->sale->is($sale));
     }
 
     public function test_lead_belongs_to_a_status_and_source(): void
@@ -145,5 +154,53 @@ class LeadTest extends TestCase
             [$closedLead->id],
             Lead::query()->closed()->orderBy('id')->pluck('id')->all(),
         );
+    }
+
+    public function test_closed_scope_counts_each_lead_when_the_same_person_has_two_closed_sales(): void
+    {
+        $closedStatus = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+        $seller = Lead::factory()->create([
+            'first_name' => 'Jane',
+            'last_name' => 'Doe',
+            'email' => 'jane@example.com',
+            'type' => SaleType::Seller,
+        ]);
+        $buyer = Lead::factory()->create([
+            'first_name' => 'Jane',
+            'last_name' => 'Doe',
+            'email' => 'jane@example.com',
+            'type' => SaleType::Buyer,
+        ]);
+        Sale::factory()->closed()->recycle($closedStatus)->for($seller)->create();
+        Sale::factory()->closed()->recycle($closedStatus)->for($buyer)->create();
+
+        $this->assertSame(
+            [$seller->id, $buyer->id],
+            Lead::query()->closed()->orderBy('id')->pluck('id')->all(),
+        );
+    }
+
+    public function test_lead_cannot_be_persisted_without_a_type(): void
+    {
+        $this->expectException(QueryException::class);
+
+        Lead::query()->create([
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'lead_status_id' => LeadStatus::factory()->create()->id,
+            'lead_source_id' => LeadSource::factory()->create()->id,
+        ]);
+    }
+
+    public function test_related_type_is_the_opposite_side_for_buyer_and_seller(): void
+    {
+        $seller = Lead::factory()->create(['type' => SaleType::Seller]);
+        $rental = Lead::factory()->create(['type' => SaleType::Rental]);
+
+        $this->assertSame(SaleType::Buyer, $seller->relatedType());
+        $this->assertSame(SaleType::Rental, $rental->relatedType());
     }
 }

@@ -27,7 +27,7 @@ class LeadResource extends Resource
 
     public static function getRecordTitle(?Model $record): ?string
     {
-        return $record instanceof Lead ? $record->full_name : null;
+        return $record instanceof Lead ? $record->nameWithType() : null;
     }
 
     public static function form(Schema $schema): Schema

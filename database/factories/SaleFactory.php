@@ -44,7 +44,7 @@ class SaleFactory extends Factory
         return [
             'lead_id' => Lead::factory(),
             'sale_status_id' => SaleStatus::factory(),
-            'sale_type' => fake()->randomElement(SaleType::cases()),
+            'sale_type' => fn (array $attributes): SaleType => Lead::query()->findOrFail($attributes['lead_id'])->type,
             'street_address' => fake()->streetAddress(),
             'city' => fake()->city(),
             'state' => fake()->stateAbbr(),

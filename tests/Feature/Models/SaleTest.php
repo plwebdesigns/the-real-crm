@@ -4,6 +4,7 @@ namespace Tests\Feature\Models;
 
 use App\Enums\BrokerageFeeType;
 use App\Enums\SaleType;
+use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\User;
@@ -14,6 +15,17 @@ use Tests\TestCase;
 class SaleTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_sale_type_matches_the_lead_type(): void
+    {
+        $lead = Lead::factory()->create(['type' => SaleType::Buyer]);
+
+        $sale = Sale::factory()->for($lead)->create([
+            'sale_type' => SaleType::Seller,
+        ]);
+
+        $this->assertSame(SaleType::Buyer, $sale->sale_type);
+    }
 
     public function test_sale_cannot_be_persisted_without_a_lead(): void
     {
