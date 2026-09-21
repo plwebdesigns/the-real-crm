@@ -27,10 +27,12 @@ class LeadSourceTest extends TestCase
     {
         $source = LeadSource::factory()->create();
         $lead = Lead::factory()->for($source, 'source')->create();
-        $sales = Sale::factory()->count(2)->for($lead)->create();
+        $secondLead = Lead::factory()->for($source, 'source')->create();
+        $firstSale = Sale::factory()->for($lead)->create();
+        $secondSale = Sale::factory()->for($secondLead)->create();
 
         $this->assertCount(2, $source->sales);
-        $this->assertTrue($source->sales->contains($sales[0]));
-        $this->assertTrue($source->sales->contains($sales[1]));
+        $this->assertTrue($source->sales->contains($firstSale));
+        $this->assertTrue($source->sales->contains($secondSale));
     }
 }

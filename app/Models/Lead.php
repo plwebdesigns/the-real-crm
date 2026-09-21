@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SaleType;
 use Database\Factories\LeadFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -10,13 +11,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'first_name',
     'last_name',
     'email',
     'phone',
+    'type',
     'lead_status_id',
     'lead_source_id',
     'location',
@@ -39,6 +41,7 @@ class Lead extends Model
     protected function casts(): array
     {
         return [
+            'type' => SaleType::class,
             'bedrooms' => 'integer',
             'bathrooms' => 'decimal:1',
             'garage' => 'boolean',
@@ -49,6 +52,16 @@ class Lead extends Model
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";
+    }
+
+    public function nameWithType(): string
+    {
+        return "{$this->full_name} ({$this->type->name})";
+    }
+
+    public function relatedType(): SaleType
+    {
+        return $this->type->relatedType();
     }
 
     /**
@@ -68,11 +81,11 @@ class Lead extends Model
     }
 
     /**
-     * @return HasMany<Sale, $this>
+     * @return HasOne<Sale, $this>
      */
-    public function sales(): HasMany
+    public function sale(): HasOne
     {
-        return $this->hasMany(Sale::class);
+        return $this->hasOne(Sale::class);
     }
 
     /**
@@ -131,8 +144,8 @@ class Lead extends Model
     protected function closed(Builder $query): Builder
     {
         return $query->whereHas(
-            'sales',
-            fn (Builder $sales): Builder => $sales->closed(),
+            'sale',
+            fn (Builder $sale): Builder => $sale->closed(),
         );
     }
 }

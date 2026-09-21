@@ -51,6 +51,14 @@ class Sale extends Model
     protected static function booted(): void
     {
         static::saving(function (Sale $sale): void {
+            if ($sale->isDirty('lead_id')) {
+                $sale->unsetRelation('lead');
+            }
+
+            if ($sale->lead?->type instanceof SaleType) {
+                $sale->sale_type = $sale->lead->type;
+            }
+
             $sale->gross_commission = self::grossCommissionFor(
                 $sale->price,
                 $sale->commission_percentage,

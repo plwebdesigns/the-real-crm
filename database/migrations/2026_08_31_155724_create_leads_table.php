@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('last_name');
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
+            $table->string('type');
             $table->foreignId('lead_status_id')->constrained()->restrictOnDelete();
             $table->foreignId('lead_source_id')->constrained()->restrictOnDelete();
             $table->timestamps();

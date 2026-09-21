@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Sales\Schemas;
 
-use App\Enums\SaleType;
 use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
@@ -15,6 +14,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 
 class SaleForm
 {
@@ -24,13 +24,28 @@ class SaleForm
             ->components([
                 Select::make('lead_id')
                     ->label('Lead')
-                    ->relationship('lead', 'last_name')
+                    ->relationship(
+                        'lead',
+                        'last_name',
+                        function (Builder $query, Select $component): Builder {
+                            $record = $component->getRecord();
+
+                            return $query->where(function (Builder $leads) use ($record): void {
+                                $leads->whereDoesntHave('sale');
+
+                                if ($record instanceof Sale && filled($record->lead_id)) {
+                                    $leads->orWhereKey($record->lead_id);
+                                }
+                            });
+                        },
+                    )
                     ->getOptionLabelFromRecordUsing(
-                        fn (Lead $record): string => $record->full_name,
+                        fn (Lead $record): string => $record->nameWithType(),
                     )
                     ->searchable(['first_name', 'last_name', 'email'])
                     ->preload()
-                    ->required(),
+                    ->required()
+                    ->unique(ignoreRecord: true),
                 Select::make('sale_status_id')
                     ->label('Status')
                     ->relationship('status', 'name')
@@ -38,9 +53,6 @@ class SaleForm
                     ->preload()
                     ->required()
                     ->live(),
-                Select::make('sale_type')
-                    ->options(SaleType::class)
-                    ->required(),
                 TextInput::make('street_address')
                     ->required()
                     ->maxLength(255),

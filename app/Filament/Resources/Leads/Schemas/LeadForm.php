@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Leads\Schemas;
 
+use App\Enums\SaleType;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -28,6 +29,9 @@ class LeadForm
                 TextInput::make('phone')
                     ->tel()
                     ->maxLength(255),
+                Select::make('type')
+                    ->options(SaleType::class)
+                    ->required(),
                 Select::make('lead_status_id')
                     ->label('Status')
                     ->relationship('status', 'name')

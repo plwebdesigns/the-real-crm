@@ -16,4 +16,13 @@ enum SaleType: string implements HasLabel
     {
         return $this->name;
     }
+
+    public function relatedType(): self
+    {
+        return match ($this) {
+            self::Seller => self::Buyer,
+            self::Buyer => self::Seller,
+            self::Rental, self::Other => $this,
+        };
+    }
 }

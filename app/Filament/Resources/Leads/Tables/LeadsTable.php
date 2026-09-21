@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources\Leads\Tables;
 
+use App\Enums\SaleType;
+use App\Filament\Resources\Leads\LeadResource;
+use App\Models\Lead;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -28,6 +32,9 @@ class LeadsTable
                 TextColumn::make('phone')
                     ->searchable()
                     ->toggleable(),
+                TextColumn::make('type')
+                    ->badge()
+                    ->sortable(),
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->sortable(),
@@ -52,6 +59,8 @@ class LeadsTable
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
+                SelectFilter::make('type')
+                    ->options(SaleType::class),
                 SelectFilter::make('lead_status_id')
                     ->label('Status')
                     ->relationship('status', 'name'),
@@ -66,6 +75,11 @@ class LeadsTable
             ])
             ->recordActions([
                 EditAction::make(),
+                Action::make('createRelatedLead')
+                    ->label('Create related lead')
+                    ->url(fn (Lead $record): string => LeadResource::getUrl('create', [
+                        'related' => $record->id,
+                    ], isAbsolute: false)),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
