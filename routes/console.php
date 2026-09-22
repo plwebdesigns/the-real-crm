@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Schedule;
 
 /**
  * Schedule the migrate:fresh --seed command to run daily at 12:00 AM.
