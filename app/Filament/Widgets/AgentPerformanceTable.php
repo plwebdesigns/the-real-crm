@@ -98,24 +98,30 @@ class AgentPerformanceTable extends TableWidget
     private function agentsQuery(): Builder
     {
         $year = now()->year;
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return User::query()->whereRaw('0 = 1');
+        }
 
         return User::query()
+            ->visibleTo($user)
             ->withCount([
-                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year),
-                'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending(),
-                'leads as assigned_leads_count',
-                'leads as working_leads_count' => fn (Builder $leads): Builder => $leads->working(),
-                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed(),
+                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
+                'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending()->visibleTo($user),
+                'leads as assigned_leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user),
+                'leads as working_leads_count' => fn (Builder $leads): Builder => $leads->working()->visibleTo($user),
+                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed()->visibleTo($user),
             ])
             ->withSum(
                 [
-                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year),
+                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
                 ],
                 'price',
             )
             ->withSum(
                 [
-                    'sales as brokerage_fee' => fn (Builder $sales): Builder => $sales->closedInYear($year),
+                    'sales as brokerage_fee' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
                 ],
                 'brokerage_fee',
             )
@@ -125,7 +131,7 @@ class AgentPerformanceTable extends TableWidget
                     ->whereColumn('sale_user.user_id', 'users.id')
                     ->whereHas(
                         'sale',
-                        fn (Builder $sales): Builder => $sales->closedInYear($year),
+                        fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
                     ),
             ])
             ->withCasts([

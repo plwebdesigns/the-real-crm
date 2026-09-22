@@ -43,6 +43,7 @@ class SaleFactory extends Factory
     {
         return [
             'lead_id' => Lead::factory(),
+            'location_id' => fn (array $attributes): int => Lead::query()->findOrFail($attributes['lead_id'])->location_id,
             'sale_status_id' => SaleStatus::factory(),
             'sale_type' => fn (array $attributes): SaleType => Lead::query()->findOrFail($attributes['lead_id'])->type,
             'street_address' => fake()->streetAddress(),

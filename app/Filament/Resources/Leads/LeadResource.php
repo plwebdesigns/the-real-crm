@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Leads;
 
+use App\Filament\Concerns\ScopesRecordsToLocation;
 use App\Filament\Resources\Leads\Pages\CreateLead;
 use App\Filament\Resources\Leads\Pages\EditLead;
 use App\Filament\Resources\Leads\Pages\ListLeads;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class LeadResource extends Resource
 {
+    use ScopesRecordsToLocation;
+
     protected static ?string $model = Lead::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;

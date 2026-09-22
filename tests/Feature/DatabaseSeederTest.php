@@ -20,15 +20,21 @@ class DatabaseSeederTest extends TestCase
 
         $this->assertSame([
             'contacted',
+            'converted',
             'lost',
             'new',
             'qualified',
         ], LeadStatus::query()->orderBy('slug')->pluck('slug')->all());
         $this->assertSame([
+            'car-ads',
+            'facebook',
+            'instagram',
+            'linkedin',
             'open-house',
-            'other',
             'referral',
+            'twitter',
             'website',
+            'youtube',
             'zillow',
         ], LeadSource::query()->orderBy('slug')->pluck('slug')->all());
         $this->assertSame([
@@ -36,7 +42,7 @@ class DatabaseSeederTest extends TestCase
             'closed',
             'pending',
         ], SaleStatus::query()->orderBy('slug')->pluck('slug')->all());
-        $this->assertDatabaseCount(Lead::class, 30);
-        $this->assertDatabaseCount(Sale::class, 10);
+        $this->assertDatabaseCount(Lead::class, 110);
+        $this->assertDatabaseCount(Sale::class, 44);
     }
 }

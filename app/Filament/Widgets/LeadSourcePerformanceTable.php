@@ -87,23 +87,28 @@ class LeadSourcePerformanceTable extends TableWidget
     private function sourcesQuery(): Builder
     {
         $year = now()->year;
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return LeadSource::query()->whereRaw('0 = 1');
+        }
 
         return LeadSource::query()
             ->withCount([
-                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year),
-                'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending(),
-                'leads as leads_count',
-                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed(),
+                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
+                'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending()->visibleTo($user),
+                'leads as leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user),
+                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed()->visibleTo($user),
             ])
             ->withSum(
                 [
-                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year),
+                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
                 ],
                 'price',
             )
             ->withSum(
                 [
-                    'sales as gross_commission' => fn (Builder $sales): Builder => $sales->closedInYear($year),
+                    'sales as gross_commission' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
                 ],
                 'gross_commission',
             )

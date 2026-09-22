@@ -43,7 +43,7 @@ class AnalyticsTest extends TestCase
 
     public function test_admin_can_view_analytics(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
 
         $this->actingAs($admin)
             ->get(Analytics::getUrl(isAbsolute: false))
@@ -59,7 +59,7 @@ class AnalyticsTest extends TestCase
 
     public function test_personal_dashboard_does_not_include_firm_analytics_widgets(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
 
         $this->actingAs($admin)
             ->get(Dashboard::getUrl(isAbsolute: false))
@@ -75,7 +75,7 @@ class AnalyticsTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $firstAgent = User::factory()->create();
         $secondAgent = User::factory()->create();
         $closedStatus = $this->closedStatus();
@@ -119,7 +119,7 @@ class AnalyticsTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $firstAgent = User::factory()->create();
         $secondAgent = User::factory()->create();
         $sale = Sale::factory()->closed()->withoutAgents()->recycle($this->closedStatus())->create([
@@ -155,7 +155,7 @@ class AnalyticsTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $agent = User::factory()->create();
         $closedStatus = $this->closedStatus();
         $this->assignAgent(
@@ -184,7 +184,7 @@ class AnalyticsTest extends TestCase
 
     public function test_firm_sales_stats_link_to_the_matching_sales_list_without_an_agent_filter(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
 
         Livewire::actingAs($admin)
             ->test(FirmSalesStatsOverview::class)
@@ -195,7 +195,7 @@ class AnalyticsTest extends TestCase
 
     public function test_admin_sees_all_working_lost_and_closed_lead_stats(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $agent = User::factory()->create();
         $otherAgent = User::factory()->create();
         Lead::factory()->asNew()->create();
@@ -220,7 +220,7 @@ class AnalyticsTest extends TestCase
 
     public function test_firm_lead_stats_link_to_the_matching_leads_list_without_an_agent_filter(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
 
         Livewire::actingAs($admin)
             ->test(FirmLeadsStatsOverview::class)
@@ -235,7 +235,7 @@ class AnalyticsTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $firstAgent = User::factory()->create(['name' => 'Ada Agent']);
         $secondAgent = User::factory()->create(['name' => 'Jordan Agent']);
         $closedStatus = $this->closedStatus();
@@ -291,7 +291,7 @@ class AnalyticsTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $firstAgent = User::factory()->create(['name' => 'Ada Agent']);
         $secondAgent = User::factory()->create(['name' => 'Jordan Agent']);
         $sale = Sale::factory()->closed()->withoutAgents()->recycle($this->closedStatus())->create([
@@ -327,7 +327,7 @@ class AnalyticsTest extends TestCase
 
     public function test_agent_name_links_to_the_closed_sales_list_for_that_agent(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $agent = User::factory()->create();
 
         Livewire::actingAs($admin)
@@ -339,7 +339,7 @@ class AnalyticsTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
         $website = LeadSource::factory()->create(['name' => 'Website']);
         $openHouse = LeadSource::factory()->create(['name' => 'Open House']);
@@ -388,7 +388,7 @@ class AnalyticsTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
         $closedStatus = $this->closedStatus();
         $thisYearLead = Lead::factory()->qualified()->for($zillow, 'source')->create();
@@ -414,7 +414,7 @@ class AnalyticsTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
         $firstAgent = User::factory()->create();
         $secondAgent = User::factory()->create();
@@ -449,7 +449,7 @@ class AnalyticsTest extends TestCase
 
     public function test_lead_source_name_links_to_the_closed_sales_list_for_that_source(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superAdmin()->create();
         $source = LeadSource::factory()->create();
 
         Livewire::actingAs($admin)

@@ -3,12 +3,15 @@
 namespace App\Filament\Resources\Leads\Schemas;
 
 use App\Enums\SaleType;
+use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 
 class LeadForm
 {
@@ -44,13 +47,40 @@ class LeadForm
                     ->searchable()
                     ->preload()
                     ->required(),
+                Select::make('location_id')
+                    ->label('Location')
+                    ->relationship('office', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->required()
+                    ->live()
+                    ->visible(fn (): bool => auth()->user()?->is_super_admin ?? false),
                 Select::make('agents')
-                    ->relationship('agents', 'name')
+                    ->relationship(
+                        'agents',
+                        'name',
+                        function (Builder $query, Get $get): Builder {
+                            $user = auth()->user();
+
+                            if (! $user instanceof User) {
+                                return $query->whereRaw('0 = 1');
+                            }
+
+                            $locationId = $user->is_super_admin
+                                ? $get('location_id')
+                                : $user->location_id;
+
+                            return $query->atLocation(
+                                is_numeric($locationId) ? (int) $locationId : null,
+                            );
+                        },
+                    )
                     ->multiple()
                     ->searchable()
                     ->preload()
                     ->default(fn (): array => array_filter([auth()->id()])),
                 TextInput::make('location')
+                    ->label('Property location')
                     ->maxLength(255),
                 TextInput::make('property_type')
                     ->maxLength(255),

@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'type',
     'lead_status_id',
     'lead_source_id',
+    'location_id',
     'location',
     'property_type',
     'price_range',
@@ -62,6 +63,14 @@ class Lead extends Model
     public function relatedType(): SaleType
     {
         return $this->type->relatedType();
+    }
+
+    /**
+     * @return BelongsTo<Location, $this>
+     */
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     /**
@@ -147,5 +156,19 @@ class Lead extends Model
             'sale',
             fn (Builder $sale): Builder => $sale->closed(),
         );
+    }
+
+    /**
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->is_super_admin) {
+            return $query;
+        }
+
+        return $query->where('location_id', $user->location_id);
     }
 }

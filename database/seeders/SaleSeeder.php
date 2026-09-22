@@ -16,7 +16,7 @@ class SaleSeeder extends Seeder
      */
     public function run(): void
     {
-        $users = User::all();
+        $users = User::query()->whereNotNull('location_id')->get();
         $statuses = SaleStatus::all();
 
         $users->each(function (User $user) use ($statuses): void {

@@ -2,9 +2,9 @@
 
 namespace App\Policies;
 
-use App\Policies\Concerns\AllowsAuthenticatedUsers;
+use App\Policies\Concerns\AllowsLocationMembers;
 
 class SalePolicy
 {
-    use AllowsAuthenticatedUsers;
+    use AllowsLocationMembers;
 }
