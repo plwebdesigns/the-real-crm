@@ -6,6 +6,7 @@ use App\Enums\SaleType;
 use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
+use App\Models\Location;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -26,6 +27,7 @@ class LeadFactory extends Factory
             'type' => fake()->randomElement(SaleType::cases()),
             'lead_status_id' => LeadStatus::factory(),
             'lead_source_id' => LeadSource::factory(),
+            'location_id' => Location::factory(),
             'location' => fake()->city(),
             'property_type' => fake()->randomElement(['Single Family', 'Condo', 'Townhouse', 'Land']),
             'price_range' => fake()->randomElement(['$200k-$300k', '$300k-$500k', '$500k-$750k', '$750k+']),

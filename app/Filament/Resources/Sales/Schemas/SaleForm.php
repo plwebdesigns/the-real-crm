@@ -6,6 +6,7 @@ use App\Models\Lead;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\SaleUser;
+use App\Models\User;
 use Closure;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
@@ -24,11 +25,17 @@ class SaleForm
             ->components([
                 Select::make('lead_id')
                     ->label('Lead')
+                    ->live()
                     ->relationship(
                         'lead',
                         'last_name',
                         function (Builder $query, Select $component): Builder {
                             $record = $component->getRecord();
+                            $user = auth()->user();
+
+                            if ($user instanceof User) {
+                                $query->visibleTo($user);
+                            }
 
                             return $query->where(function (Builder $leads) use ($record): void {
                                 $leads->whereDoesntHave('sale');
@@ -107,7 +114,25 @@ class SaleForm
                     ->schema([
                         Select::make('user_id')
                             ->label('Agent')
-                            ->relationship('user', 'name')
+                            ->relationship(
+                                'user',
+                                'name',
+                                function (Builder $query, Get $get): Builder {
+                                    $user = auth()->user();
+                                    $leadId = $get('../../lead_id');
+                                    $locationId = null;
+
+                                    if ($user instanceof User && ! $user->is_super_admin) {
+                                        $locationId = $user->location_id;
+                                    } elseif (filled($leadId)) {
+                                        $locationId = Lead::query()->whereKey($leadId)->value('location_id');
+                                    }
+
+                                    return $query->atLocation(
+                                        is_numeric($locationId) ? (int) $locationId : null,
+                                    );
+                                },
+                            )
                             ->searchable()
                             ->preload()
                             ->required()

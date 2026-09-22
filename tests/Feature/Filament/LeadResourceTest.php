@@ -10,6 +10,7 @@ use App\Filament\Resources\Leads\Pages\ListLeads;
 use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
+use App\Models\Location;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\User;
@@ -62,6 +63,7 @@ class LeadResourceTest extends TestCase
             'type' => SaleType::Buyer,
             'lead_status_id' => $status->id,
             'lead_source_id' => $source->id,
+            'location_id' => $agent->location_id,
         ]);
 
         $lead = Lead::query()->where('first_name', 'Ada')->first();
@@ -102,6 +104,7 @@ class LeadResourceTest extends TestCase
         $this->assertNotNull($lead);
         $this->assertSame(SaleType::Seller, $lead->type);
         $this->assertSame('Austin', $lead->location);
+        $this->assertSame($agent->location_id, $lead->location_id);
         $this->assertSame('Single Family', $lead->property_type);
         $this->assertSame('$300k-$500k', $lead->price_range);
         $this->assertSame(3, $lead->bedrooms);
@@ -113,9 +116,10 @@ class LeadResourceTest extends TestCase
 
     public function test_agent_can_assign_multiple_agents_when_creating_a_lead(): void
     {
-        $agent = User::factory()->create();
-        $listingAgent = User::factory()->create();
-        $buyersAgent = User::factory()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $listingAgent = User::factory()->for($location)->create();
+        $buyersAgent = User::factory()->for($location)->create();
         $status = LeadStatus::factory()->create();
         $source = LeadSource::factory()->create();
 
@@ -167,10 +171,11 @@ class LeadResourceTest extends TestCase
 
     public function test_agent_can_update_assigned_agents_on_a_lead(): void
     {
-        $agent = User::factory()->create();
-        $originalAgent = User::factory()->create();
-        $replacementAgent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $originalAgent = User::factory()->for($location)->create();
+        $replacementAgent = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
         $lead->agents()->attach($originalAgent);
 
         Livewire::actingAs($agent)
@@ -190,13 +195,14 @@ class LeadResourceTest extends TestCase
 
     public function test_working_tab_shows_contacted_and_qualified_leads_for_the_selected_agent(): void
     {
-        $agent = User::factory()->create();
-        $otherAgent = User::factory()->create();
-        $contacted = $this->assignLead(Lead::factory()->contacted()->create(), $agent);
-        $qualified = $this->assignLead(Lead::factory()->qualified()->create(), $agent);
-        $new = $this->assignLead(Lead::factory()->asNew()->create(), $agent);
-        $lost = $this->assignLead(Lead::factory()->lost()->create(), $agent);
-        $otherContacted = $this->assignLead(Lead::factory()->contacted()->create(), $otherAgent);
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $otherAgent = User::factory()->for($location)->create();
+        $contacted = $this->assignLead(Lead::factory()->contacted()->recycle($location)->create(), $agent);
+        $qualified = $this->assignLead(Lead::factory()->qualified()->recycle($location)->create(), $agent);
+        $new = $this->assignLead(Lead::factory()->asNew()->recycle($location)->create(), $agent);
+        $lost = $this->assignLead(Lead::factory()->lost()->recycle($location)->create(), $agent);
+        $otherContacted = $this->assignLead(Lead::factory()->contacted()->recycle($location)->create(), $otherAgent);
 
         Livewire::actingAs($agent)
             ->test(ListLeads::class, [
@@ -213,11 +219,12 @@ class LeadResourceTest extends TestCase
 
     public function test_lost_tab_shows_lost_leads_for_the_selected_agent(): void
     {
-        $agent = User::factory()->create();
-        $otherAgent = User::factory()->create();
-        $lost = $this->assignLead(Lead::factory()->lost()->create(), $agent);
-        $contacted = $this->assignLead(Lead::factory()->contacted()->create(), $agent);
-        $otherLost = $this->assignLead(Lead::factory()->lost()->create(), $otherAgent);
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $otherAgent = User::factory()->for($location)->create();
+        $lost = $this->assignLead(Lead::factory()->lost()->recycle($location)->create(), $agent);
+        $contacted = $this->assignLead(Lead::factory()->contacted()->recycle($location)->create(), $agent);
+        $otherLost = $this->assignLead(Lead::factory()->lost()->recycle($location)->create(), $otherAgent);
 
         Livewire::actingAs($agent)
             ->test(ListLeads::class, [
@@ -234,11 +241,12 @@ class LeadResourceTest extends TestCase
 
     public function test_closed_tab_shows_leads_with_a_closed_sale_for_the_selected_agent(): void
     {
-        $agent = User::factory()->create();
-        $otherAgent = User::factory()->create();
-        $closed = $this->assignLead(Lead::factory()->qualified()->create(), $agent);
-        $pending = $this->assignLead(Lead::factory()->qualified()->create(), $agent);
-        $otherClosed = $this->assignLead(Lead::factory()->qualified()->create(), $otherAgent);
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $otherAgent = User::factory()->for($location)->create();
+        $closed = $this->assignLead(Lead::factory()->qualified()->recycle($location)->create(), $agent);
+        $pending = $this->assignLead(Lead::factory()->qualified()->recycle($location)->create(), $agent);
+        $otherClosed = $this->assignLead(Lead::factory()->qualified()->recycle($location)->create(), $otherAgent);
         $closedStatus = SaleStatus::factory()->create([
             'name' => 'Closed',
             'slug' => 'closed',
@@ -247,9 +255,9 @@ class LeadResourceTest extends TestCase
             'name' => 'Pending',
             'slug' => 'pending',
         ]);
-        Sale::factory()->closed()->recycle($closedStatus)->for($closed)->create();
-        Sale::factory()->pending()->recycle($pendingStatus)->for($pending)->create();
-        Sale::factory()->closed()->recycle($closedStatus)->for($otherClosed)->create();
+        Sale::factory()->closed()->recycle([$closedStatus, $location])->for($closed)->create();
+        Sale::factory()->pending()->recycle([$pendingStatus, $location])->for($pending)->create();
+        Sale::factory()->closed()->recycle([$closedStatus, $location])->for($otherClosed)->create();
 
         Livewire::actingAs($agent)
             ->test(ListLeads::class, [
@@ -266,10 +274,11 @@ class LeadResourceTest extends TestCase
 
     public function test_create_related_lead_prefills_contact_fields_and_opposite_type(): void
     {
-        $agent = User::factory()->create();
-        $listingAgent = User::factory()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $listingAgent = User::factory()->for($location)->create();
         $source = LeadSource::factory()->create();
-        $lead = Lead::factory()->create([
+        $lead = Lead::factory()->recycle($location)->create([
             'first_name' => 'Jane',
             'last_name' => 'Doe',
             'email' => 'jane@example.com',
@@ -294,8 +303,9 @@ class LeadResourceTest extends TestCase
 
     public function test_edit_page_links_to_create_related_lead(): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
 
         Livewire::actingAs($agent)
             ->test(EditLead::class, ['record' => $lead->getRouteKey()])

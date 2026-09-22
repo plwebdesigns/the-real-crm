@@ -27,10 +27,16 @@ class FirmLeadsStatsOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $totalCount = Lead::query()->count();
-        $workingCount = Lead::query()->working()->count();
-        $lostCount = Lead::query()->lost()->count();
-        $closedCount = Lead::query()->closed()->count();
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return [];
+        }
+
+        $totalCount = Lead::query()->visibleTo($user)->count();
+        $workingCount = Lead::query()->visibleTo($user)->working()->count();
+        $lostCount = Lead::query()->visibleTo($user)->lost()->count();
+        $closedCount = Lead::query()->visibleTo($user)->closed()->count();
         $closedPercent = $totalCount === 0
             ? 0.0
             : ($closedCount / $totalCount) * 100;

@@ -22,9 +22,17 @@ class UsersTable
                     ->label('Email address')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('location.name')
+                    ->label('Location')
+                    ->sortable()
+                    ->placeholder('All locations'),
                 IconColumn::make('is_admin')
                     ->label('Admin')
                     ->boolean(),
+                IconColumn::make('is_super_admin')
+                    ->label('Super admin')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Leads\Tables;
 use App\Enums\SaleType;
 use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Lead;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -12,6 +13,7 @@ use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class LeadsTable
 {
@@ -46,6 +48,7 @@ class LeadsTable
                     ->badge()
                     ->separator(','),
                 TextColumn::make('location')
+                    ->label('Property location')
                     ->searchable()
                     ->toggleable(),
                 TextColumn::make('property_type')
@@ -69,7 +72,17 @@ class LeadsTable
                     ->relationship('source', 'name'),
                 SelectFilter::make('agents')
                     ->label('Agent')
-                    ->relationship('agents', 'name')
+                    ->relationship(
+                        'agents',
+                        'name',
+                        function (Builder $query): Builder {
+                            $user = auth()->user();
+
+                            return $user instanceof User
+                                ? $query->visibleTo($user)
+                                : $query->whereRaw('0 = 1');
+                        },
+                    )
                     ->searchable()
                     ->preload(),
             ])

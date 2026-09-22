@@ -20,16 +20,16 @@ class LeadSeeder extends Seeder
             LeadSource::all(),
         ];
 
-        $leads = Lead::factory()->count(100)->recycle($lookups)->create();
-        $users = User::all();
-        $assignments = $leads->shuffle()->chunk(10);
+        User::query()
+            ->whereNotNull('location_id')
+            ->get()
+            ->each(function (User $user) use ($lookups): void {
+                $leads = Lead::factory()
+                    ->count(10)
+                    ->recycle([...$lookups, $user->location])
+                    ->create();
 
-        $users->each(function (User $user, int $index) use ($assignments): void {
-            if (! $assignments->has($index)) {
-                return;
-            }
-
-            $user->leads()->attach($assignments[$index]->modelKeys());
-        });
+                $user->leads()->attach($leads->modelKeys());
+            });
     }
 }

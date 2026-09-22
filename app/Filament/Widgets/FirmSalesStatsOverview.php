@@ -27,7 +27,14 @@ class FirmSalesStatsOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return [];
+        }
+
         $closed = Sale::query()
+            ->visibleTo($user)
             ->closedInYear(now()->year)
             ->toBase()
             ->selectRaw('count(*) as closed_count')
@@ -57,7 +64,7 @@ class FirmSalesStatsOverview extends StatsOverviewWidget
                 ->color('success'),
             Stat::make(
                 'Pending sales',
-                (string) Sale::query()->pending()->count(),
+                (string) Sale::query()->visibleTo($user)->pending()->count(),
             )
                 ->description('Open pipeline')
                 ->descriptionIcon(Heroicon::OutlinedClock)

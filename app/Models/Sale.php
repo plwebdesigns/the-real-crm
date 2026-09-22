@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'lead_id',
+    'location_id',
     'sale_status_id',
     'sale_type',
     'street_address',
@@ -57,6 +58,10 @@ class Sale extends Model
 
             if ($sale->lead?->type instanceof SaleType) {
                 $sale->sale_type = $sale->lead->type;
+            }
+
+            if ($sale->lead?->location_id !== null) {
+                $sale->location_id = $sale->lead->location_id;
             }
 
             $sale->gross_commission = self::grossCommissionFor(
@@ -107,6 +112,14 @@ class Sale extends Model
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
+    }
+
+    /**
+     * @return BelongsTo<Location, $this>
+     */
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
     }
 
     /**
@@ -185,5 +198,19 @@ class Sale extends Model
             'status',
             fn (Builder $status): Builder => $status->where('slug', 'pending'),
         );
+    }
+
+    /**
+     * @param  Builder<Sale>  $query
+     * @return Builder<Sale>
+     */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->is_super_admin) {
+            return $query;
+        }
+
+        return $query->where('location_id', $user->location_id);
     }
 }

@@ -9,6 +9,7 @@ use App\Filament\Resources\Sales\Pages\ListSales;
 use App\Filament\Resources\Sales\SaleResource;
 use App\Models\Lead;
 use App\Models\LeadSource;
+use App\Models\Location;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\SaleUser;
@@ -62,8 +63,9 @@ class SaleResourceTest extends TestCase
     {
         $this->travelTo('2026-09-14 12:00:00');
 
-        $agent = User::factory()->create();
-        $otherAgent = User::factory()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $otherAgent = User::factory()->for($location)->create();
         $closedStatus = SaleStatus::factory()->create([
             'name' => 'Closed',
             'slug' => 'closed',
@@ -73,21 +75,21 @@ class SaleResourceTest extends TestCase
             'slug' => 'pending',
         ]);
         $closedSale = $this->assignAgent(
-            Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create(),
+            Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $location])->create(),
             $agent,
         );
         $pendingSale = $this->assignAgent(
-            Sale::factory()->pending()->withoutAgents()->recycle($pendingStatus)->create(),
+            Sale::factory()->pending()->withoutAgents()->recycle([$pendingStatus, $location])->create(),
             $agent,
         );
         $lastYearClosedSale = $this->assignAgent(
-            Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create([
+            Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $location])->create([
                 'closed_at' => now()->subYear(),
             ]),
             $agent,
         );
         $otherAgentClosedSale = $this->assignAgent(
-            Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create(),
+            Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $location])->create(),
             $otherAgent,
         );
 
@@ -110,8 +112,9 @@ class SaleResourceTest extends TestCase
 
     public function test_pending_tab_shows_pending_sales_for_the_selected_agent(): void
     {
-        $agent = User::factory()->create();
-        $otherAgent = User::factory()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $otherAgent = User::factory()->for($location)->create();
         $closedStatus = SaleStatus::factory()->create([
             'name' => 'Closed',
             'slug' => 'closed',
@@ -121,15 +124,15 @@ class SaleResourceTest extends TestCase
             'slug' => 'pending',
         ]);
         $pendingSale = $this->assignAgent(
-            Sale::factory()->pending()->withoutAgents()->recycle($pendingStatus)->create(),
+            Sale::factory()->pending()->withoutAgents()->recycle([$pendingStatus, $location])->create(),
             $agent,
         );
         $closedSale = $this->assignAgent(
-            Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create(),
+            Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $location])->create(),
             $agent,
         );
         $otherAgentPendingSale = $this->assignAgent(
-            Sale::factory()->pending()->withoutAgents()->recycle($pendingStatus)->create(),
+            Sale::factory()->pending()->withoutAgents()->recycle([$pendingStatus, $location])->create(),
             $otherAgent,
         );
 
@@ -151,14 +154,15 @@ class SaleResourceTest extends TestCase
 
     public function test_source_filter_shows_only_sales_from_the_selected_source(): void
     {
-        $agent = User::factory()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
         $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
         $website = LeadSource::factory()->create(['name' => 'Website']);
-        $zillowSale = Sale::factory()->for(
-            Lead::factory()->for($zillow, 'source'),
+        $zillowSale = Sale::factory()->recycle($location)->for(
+            Lead::factory()->recycle($location)->for($zillow, 'source'),
         )->create();
-        $websiteSale = Sale::factory()->for(
-            Lead::factory()->for($website, 'source'),
+        $websiteSale = Sale::factory()->recycle($location)->for(
+            Lead::factory()->recycle($location)->for($website, 'source'),
         )->create();
 
         Livewire::actingAs($agent)
@@ -175,10 +179,8 @@ class SaleResourceTest extends TestCase
 
     public function test_agent_can_create_a_sale_with_an_agent_assignment(): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        [$agent, $lead, $assignedAgent] = $this->saleFormActors();
         $status = SaleStatus::factory()->create();
-        $assignedAgent = User::factory()->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
@@ -190,6 +192,7 @@ class SaleResourceTest extends TestCase
 
         $this->assertNotNull($sale);
         $this->assertSame($lead->id, $sale->lead_id);
+        $this->assertSame($lead->location_id, $sale->location_id);
         $this->assertSame($lead->type, $sale->sale_type);
         $this->assertSame('3.0', $sale->commission_percentage);
         $this->assertSame('13500.00', $sale->gross_commission);
@@ -201,13 +204,11 @@ class SaleResourceTest extends TestCase
 
     public function test_closed_sale_requires_a_closed_at_date(): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        [$agent, $lead, $assignedAgent] = $this->saleFormActors();
         $status = SaleStatus::factory()->create([
             'name' => 'Closed',
             'slug' => 'closed',
         ]);
-        $assignedAgent = User::factory()->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
@@ -222,13 +223,11 @@ class SaleResourceTest extends TestCase
 
     public function test_closed_sale_can_be_created_with_a_closed_at_date(): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        [$agent, $lead, $assignedAgent] = $this->saleFormActors();
         $status = SaleStatus::factory()->create([
             'name' => 'Closed',
             'slug' => 'closed',
         ]);
-        $assignedAgent = User::factory()->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
@@ -246,8 +245,9 @@ class SaleResourceTest extends TestCase
 
     public function test_updating_a_sale_to_closed_requires_a_closed_at_date(): void
     {
-        $agent = User::factory()->create();
-        $sale = Sale::factory()->pending()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $sale = Sale::factory()->pending()->recycle($location)->create();
         $closedStatus = SaleStatus::factory()->create([
             'name' => 'Closed',
             'slug' => 'closed',
@@ -270,14 +270,13 @@ class SaleResourceTest extends TestCase
 
     public function test_sale_requires_at_least_one_agent(): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        [$agent, $lead, $assignedAgent] = $this->saleFormActors();
         $status = SaleStatus::factory()->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
             ->fillForm([
-                ...$this->validSaleForm($lead, $status, User::factory()->create()),
+                ...$this->validSaleForm($lead, $status, $assignedAgent),
                 'agentAssignments' => [],
             ])
             ->call('create')
@@ -290,10 +289,11 @@ class SaleResourceTest extends TestCase
 
     public function test_sale_copies_type_from_the_lead(): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create(['type' => SaleType::Buyer]);
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create(['type' => SaleType::Buyer]);
         $status = SaleStatus::factory()->create();
-        $assignedAgent = User::factory()->create();
+        $assignedAgent = User::factory()->for($location)->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
@@ -309,11 +309,9 @@ class SaleResourceTest extends TestCase
 
     public function test_sale_rejects_a_lead_that_already_has_a_sale(): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        [$agent, $lead, $assignedAgent] = $this->saleFormActors();
         Sale::factory()->for($lead)->create();
         $status = SaleStatus::factory()->create();
-        $assignedAgent = User::factory()->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
@@ -329,10 +327,8 @@ class SaleResourceTest extends TestCase
     #[DataProvider('invalidCommissionPercentages')]
     public function test_sale_rejects_commission_percentage_outside_one_to_six(string $percentage): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        [$agent, $lead, $assignedAgent] = $this->saleFormActors();
         $status = SaleStatus::factory()->create();
-        $assignedAgent = User::factory()->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
@@ -350,10 +346,8 @@ class SaleResourceTest extends TestCase
     #[DataProvider('invalidAgentCommissionPercents')]
     public function test_sale_rejects_agent_commission_percent_outside_one_to_one_hundred(int $percent): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        [$agent, $lead, $assignedAgent] = $this->saleFormActors();
         $status = SaleStatus::factory()->create();
-        $assignedAgent = User::factory()->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
@@ -375,11 +369,12 @@ class SaleResourceTest extends TestCase
 
     public function test_sale_rejects_agent_splits_that_do_not_total_one_hundred(): void
     {
-        $agent = User::factory()->create();
-        $lead = Lead::factory()->create();
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
         $status = SaleStatus::factory()->create();
-        $listingAgent = User::factory()->create();
-        $buyersAgent = User::factory()->create();
+        $listingAgent = User::factory()->for($location)->create();
+        $buyersAgent = User::factory()->for($location)->create();
 
         Livewire::actingAs($agent)
             ->test(CreateSale::class)
@@ -401,6 +396,20 @@ class SaleResourceTest extends TestCase
         $this->assertDatabaseMissing(Sale::class, [
             'street_address' => '123 Main St',
         ]);
+    }
+
+    /**
+     * @return array{0: User, 1: Lead, 2: User}
+     */
+    private function saleFormActors(): array
+    {
+        $location = Location::factory()->create();
+
+        return [
+            User::factory()->for($location)->create(),
+            Lead::factory()->recycle($location)->create(),
+            User::factory()->for($location)->create(),
+        ];
     }
 
     /**

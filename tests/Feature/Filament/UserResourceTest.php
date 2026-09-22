@@ -3,7 +3,9 @@
 namespace Tests\Feature\Filament;
 
 use App\Filament\Resources\Users\Pages\CreateUser;
+use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\Location;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Livewire\Livewire;
@@ -36,7 +38,7 @@ class UserResourceTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_create_an_agent(): void
+    public function test_admin_can_create_an_agent_at_their_location(): void
     {
         $admin = User::factory()->admin()->create();
 
@@ -55,6 +57,45 @@ class UserResourceTest extends TestCase
             'name' => 'Jordan Agent',
             'email' => 'jordan@example.com',
             'is_admin' => false,
+            'is_super_admin' => false,
+            'location_id' => $admin->location_id,
         ]);
+    }
+
+    public function test_location_admin_cannot_create_a_super_admin(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(CreateUser::class)
+            ->fillForm([
+                'name' => 'Escalated Admin',
+                'email' => 'escalated@example.com',
+                'password' => 'password',
+                'is_admin' => true,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas(User::class, [
+            'email' => 'escalated@example.com',
+            'is_admin' => true,
+            'is_super_admin' => false,
+            'location_id' => $admin->location_id,
+        ]);
+    }
+
+    public function test_location_admin_does_not_see_agents_from_another_location(): void
+    {
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->admin()->for($miami)->create();
+        $localAgent = User::factory()->for($miami)->create();
+        $otherAgent = User::factory()->for($boston)->create();
+
+        Livewire::actingAs($admin)
+            ->test(ListUsers::class)
+            ->assertCanSeeTableRecords([$admin, $localAgent])
+            ->assertCanNotSeeTableRecords([$otherAgent]);
     }
 }
