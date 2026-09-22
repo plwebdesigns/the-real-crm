@@ -1,58 +1,50 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# The Real CRM
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Filament app for a multi-office realty team: agents work leads and sales, location admins run their office, and a super admin sees the whole firm.
 
-## About Laravel
+Open [http://the-real-crm.test/login](http://the-real-crm.test/login) (Herd parks `~/Herd`, so that URL is the live site). Sign in with email + password. The panel lives at `/`, so login is `/login`.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Named demo accounts
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+All four use **`Password123`**.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Role | Email | What you should see |
+|---|---|---|
+| Super admin (firm-wide) | `superadmin@example.com` | All offices. Analytics, Agents, Locations, and lookup settings. Can create location admins and other super admins. |
+| Downtown admin | `downtownadmin@example.com` | Downtown only. Analytics and Agents for that office, plus lead/sale status and source settings. |
+| Westside admin | `westsideadmin@example.com` | Same as Downtown, scoped to Westside. |
+| Agent | `demo@example.com` | Personal dashboard (your sales, commission, and assigned leads). Can create/edit Downtown leads and sales. No Analytics, Agents, or Settings. |
 
-## Learning Laravel
+Seeded sample data: **110 leads** and **44 sales** across Downtown and Westside.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Extra seeded agents
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+`php artisan db:seed` also creates **8 filler agents** (4 Downtown, 4 Westside) with random names and emails. Their password is **`password`**, not `Password123`. Emails change if you re-seed.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## What the product does
 
-## Agentic Development
+**Dashboard (everyone)**
+Year-to-date closed sales, volume, net commission, pending pipeline, lead counts (assigned / working / lost / closed %), and a “My leads” table. Stats link into the matching Leads or Sales tabs.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+**Leads**
+Contact + buyer/seller/rental/other type, status, source, assigned agents, and property prefs. Tabs: All / Working / Lost / Closed. **Create related lead** copies the person and flips buyer ↔ seller so one client can be two opportunities (one sale each).
+
+**Sales**
+One sale per lead. Price and commission % auto-calc gross commission, then a **$250 fixed brokerage fee** (configurable), then agent splits that must total 100%. Closed sales require a close date.
+
+**Analytics (admins)**
+Office- or firm-scoped sales/leads totals, per-agent performance, and lead-source revenue.
+
+**Settings**
+- Super admin: **Locations** (Downtown, Westside).
+- Any admin: **Agents**, **Lead statuses**, **Sale statuses**, **Lead sources**.
+Location admins can only manage people in their own office.
+
+**Roles in short**
+Agents stay in their office’s records. Location admins see that office’s everything. Super admin has no office and sees all of it.
+
+To reset demo data:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+php artisan migrate:fresh --seed
 ```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
