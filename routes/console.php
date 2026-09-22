@@ -1,8 +1,10 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Console\Scheduling\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+/**
+ * Schedule the migrate:fresh --seed command to run daily at 12:00 AM.
+ * This is for the demo environment to ensure the database is always up to date.
+ * This command is not run in production.
+ */
+Schedule::command('migrate:fresh --seed')->daily()->environments(['staging']);
