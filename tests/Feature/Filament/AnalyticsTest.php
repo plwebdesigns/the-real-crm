@@ -14,11 +14,13 @@ use App\Filament\Widgets\LeadsStatsOverview;
 use App\Filament\Widgets\SalesStatsOverview;
 use App\Models\Lead;
 use App\Models\LeadSource;
+use App\Models\Location;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\SaleUser;
 use App\Models\User;
 use Filament\Pages\Dashboard;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -445,6 +447,44 @@ class AnalyticsTest extends TestCase
             ->assertTableColumnStateSet('closed_sales_count', 1, $zillow)
             ->assertTableColumnStateSet('closed_volume', '450000.00', $zillow)
             ->assertTableColumnStateSet('gross_commission', '13500.00', $zillow);
+    }
+
+    public function test_location_admin_lead_source_table_counts_only_that_locations_sales(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->admin()->for($miami)->create();
+        $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
+        $closedStatus = $this->closedStatus();
+        $miamiLead = Lead::factory()->qualified()->for($zillow, 'source')->recycle($miami)->create();
+        $bostonLead = Lead::factory()->qualified()->for($zillow, 'source')->recycle($boston)->create();
+        Sale::factory()->closed()->withoutAgents()->for($miamiLead)->recycle($closedStatus)->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        Sale::factory()->closed()->withoutAgents()->for($bostonLead)->recycle($closedStatus)->create([
+            'price' => '200000.00',
+            'commission_percentage' => '3.0',
+        ]);
+
+        $sql = str_replace(
+            ['`', '"'],
+            '',
+            LeadSource::query()
+                ->withCount([
+                    'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear(2026)->visibleTo($admin),
+                ])
+                ->toSql(),
+        );
+
+        $this->assertStringContainsString('sales.location_id', $sql);
+
+        Livewire::actingAs($admin)
+            ->test(LeadSourcePerformanceTable::class)
+            ->assertTableColumnStateSet('closed_sales_count', 1, $zillow)
+            ->assertTableColumnStateSet('closed_volume', '450000.00', $zillow);
     }
 
     public function test_lead_source_name_links_to_the_closed_sales_list_for_that_source(): void
