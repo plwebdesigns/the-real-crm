@@ -211,6 +211,6 @@ class Sale extends Model
             return $query;
         }
 
-        return $query->where('location_id', $user->location_id);
+        return $query->where($query->qualifyColumn('location_id'), $user->location_id);
     }
 }
