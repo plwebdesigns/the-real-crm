@@ -57,6 +57,11 @@ class SalesTable
                     ->label('Agents')
                     ->badge()
                     ->separator(','),
+                TextColumn::make('location.name')
+                    ->label('Location')
+                    ->sortable()
+                    ->toggleable()
+                    ->visible(fn (): bool => auth()->user()?->is_super_admin ?? false),
                 TextColumn::make('closed_at')
                     ->date()
                     ->sortable()
@@ -73,6 +78,12 @@ class SalesTable
                     ->relationship('status', 'name'),
                 SelectFilter::make('sale_type')
                     ->options(SaleType::class),
+                SelectFilter::make('location_id')
+                    ->label('Location')
+                    ->relationship('location', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->visible(fn (): bool => auth()->user()?->is_super_admin ?? false),
                 SelectFilter::make('agents')
                     ->label('Agent')
                     ->relationship(

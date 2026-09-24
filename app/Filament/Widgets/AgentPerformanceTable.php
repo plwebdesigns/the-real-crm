@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Sales\SaleResource;
+use App\Filament\Widgets\Concerns\AppliesAnalyticsLocationFilter;
 use App\Models\SaleUser;
 use App\Models\User;
 use Filament\Tables\Columns\TextColumn;
@@ -13,6 +14,8 @@ use Illuminate\Support\Number;
 
 class AgentPerformanceTable extends TableWidget
 {
+    use AppliesAnalyticsLocationFilter;
+
     protected static bool $isDiscovered = false;
 
     protected static ?int $sort = 3;
@@ -38,6 +41,12 @@ class AgentPerformanceTable extends TableWidget
                     ->searchable()
                     ->sortable()
                     ->url(fn (User $record): string => $this->salesIndexUrl($record)),
+                TextColumn::make('location.name')
+                    ->label('Location')
+                    ->placeholder('All locations')
+                    ->sortable()
+                    ->toggleable()
+                    ->visible(fn (): bool => auth()->user()?->is_super_admin ?? false),
                 TextColumn::make('closed_sales_count')
                     ->label('Closed sales')
                     ->numeric()
@@ -104,24 +113,28 @@ class AgentPerformanceTable extends TableWidget
             return User::query()->whereRaw('0 = 1');
         }
 
+        $locationId = $this->selectedLocationId();
+
         return User::query()
             ->visibleTo($user)
+            ->inLocation($locationId)
+            ->with('location')
             ->withCount([
-                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
-                'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending()->visibleTo($user),
-                'leads as assigned_leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user),
-                'leads as working_leads_count' => fn (Builder $leads): Builder => $leads->working()->visibleTo($user),
-                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed()->visibleTo($user),
+                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending()->visibleTo($user)->inLocation($locationId),
+                'leads as assigned_leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user)->inLocation($locationId),
+                'leads as working_leads_count' => fn (Builder $leads): Builder => $leads->working()->visibleTo($user)->inLocation($locationId),
+                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed()->visibleTo($user)->inLocation($locationId),
             ])
             ->withSum(
                 [
-                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
+                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
                 ],
                 'price',
             )
             ->withSum(
                 [
-                    'sales as brokerage_fee' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
+                    'sales as brokerage_fee' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
                 ],
                 'brokerage_fee',
             )
@@ -131,7 +144,7 @@ class AgentPerformanceTable extends TableWidget
                     ->whereColumn('sale_user.user_id', 'users.id')
                     ->whereHas(
                         'sale',
-                        fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
+                        fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
                     ),
             ])
             ->withCasts([
@@ -145,11 +158,11 @@ class AgentPerformanceTable extends TableWidget
     {
         return SaleResource::getUrl('index', [
             'tab' => 'closed',
-            'filters' => [
+            'filters' => $this->filtersIncludingLocation([
                 'agents' => [
                     'value' => $user->id,
                 ],
-            ],
+            ]),
         ], isAbsolute: false);
     }
 }

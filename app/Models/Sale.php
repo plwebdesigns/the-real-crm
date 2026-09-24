@@ -213,4 +213,18 @@ class Sale extends Model
 
         return $query->where($query->qualifyColumn('location_id'), $user->location_id);
     }
+
+    /**
+     * @param  Builder<Sale>  $query
+     * @return Builder<Sale>
+     */
+    #[Scope]
+    protected function inLocation(Builder $query, ?int $locationId): Builder
+    {
+        if ($locationId === null) {
+            return $query;
+        }
+
+        return $query->where($query->qualifyColumn('location_id'), $locationId);
+    }
 }

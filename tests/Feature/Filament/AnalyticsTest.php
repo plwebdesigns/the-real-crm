@@ -43,6 +43,28 @@ class AnalyticsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_super_admin_sees_a_location_filter_on_analytics(): void
+    {
+        $miami = Location::factory()->create(['name' => 'Miami Office']);
+        $admin = User::factory()->superAdmin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(Analytics::class)
+            ->assertSee('All locations')
+            ->assertSee($miami->name);
+    }
+
+    public function test_location_admin_does_not_see_a_location_filter_on_analytics(): void
+    {
+        $miami = Location::factory()->create(['name' => 'Miami Office']);
+        $admin = User::factory()->admin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(Analytics::class)
+            ->assertDontSee('All locations')
+            ->assertDontSee($miami->name);
+    }
+
     public function test_admin_can_view_analytics(): void
     {
         $admin = User::factory()->superAdmin()->create();
@@ -71,6 +93,35 @@ class AnalyticsTest extends TestCase
             ->assertDontSeeLivewire(FirmLeadsStatsOverview::class)
             ->assertDontSeeLivewire(AgentPerformanceTable::class)
             ->assertDontSeeLivewire(LeadSourcePerformanceTable::class);
+    }
+
+    public function test_super_admin_can_limit_firm_sales_stats_to_one_location(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $closedStatus = $this->closedStatus();
+        Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $miami])->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $boston])->create([
+            'price' => '200000.00',
+            'commission_percentage' => '3.0',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(FirmSalesStatsOverview::class, [
+                'pageFilters' => ['location_id' => $miami->id],
+            ])
+            ->assertSee('Closed sales')
+            ->assertSee('1')
+            ->assertSee('$450,000.00')
+            ->assertDontSee('$200,000.00')
+            ->assertDontSee('$650,000.00')
+            ->assertSeeHtml(e($this->salesIndexUrl('closed', $miami)));
     }
 
     public function test_admin_sees_year_to_date_firm_closed_and_pending_sales_stats(): void
@@ -195,6 +246,30 @@ class AnalyticsTest extends TestCase
             ->assertDontSeeHtml('filters');
     }
 
+    public function test_super_admin_can_limit_firm_lead_stats_to_one_location(): void
+    {
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        Lead::factory()->asNew()->recycle($miami)->create();
+        Lead::factory()->contacted()->recycle($miami)->create();
+        Lead::factory()->lost()->recycle($boston)->create();
+
+        Livewire::actingAs($admin)
+            ->test(FirmLeadsStatsOverview::class, [
+                'pageFilters' => ['location_id' => $miami->id],
+            ])
+            ->assertSeeInOrder([
+                'Total leads',
+                '2',
+                'Working leads',
+                '1',
+                'Lost leads',
+                '0',
+            ])
+            ->assertSeeHtml(e($this->leadsIndexUrl('all', $miami)));
+    }
+
     public function test_admin_sees_all_working_lost_and_closed_lead_stats(): void
     {
         $admin = User::factory()->superAdmin()->create();
@@ -231,6 +306,41 @@ class AnalyticsTest extends TestCase
             ->assertSeeHtml(e($this->leadsIndexUrl('lost')))
             ->assertSeeHtml(e($this->leadsIndexUrl('closed')))
             ->assertDontSeeHtml('filters');
+    }
+
+    public function test_super_admin_can_limit_agent_performance_to_one_location(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $miamiAgent = User::factory()->for($miami)->create(['name' => 'Mia Agent']);
+        $bostonAgent = User::factory()->for($boston)->create(['name' => 'Bea Agent']);
+        $closedStatus = $this->closedStatus();
+        $this->assignAgent(
+            Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $miami])->create([
+                'price' => '450000.00',
+                'commission_percentage' => '3.0',
+            ]),
+            $miamiAgent,
+        );
+        $this->assignAgent(
+            Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $boston])->create([
+                'price' => '200000.00',
+                'commission_percentage' => '3.0',
+            ]),
+            $bostonAgent,
+        );
+
+        Livewire::actingAs($admin)
+            ->test(AgentPerformanceTable::class, [
+                'pageFilters' => ['location_id' => $miami->id],
+            ])
+            ->assertCanSeeTableRecords([$miamiAgent])
+            ->assertCanNotSeeTableRecords([$bostonAgent, $admin])
+            ->assertTableColumnStateSet('closed_volume', '450000.00', $miamiAgent)
+            ->assertSeeHtml(e($this->agentSalesIndexUrl($miamiAgent, $miami)));
     }
 
     public function test_agent_performance_table_shows_each_agents_own_numbers(): void
@@ -335,6 +445,37 @@ class AnalyticsTest extends TestCase
         Livewire::actingAs($admin)
             ->test(AgentPerformanceTable::class)
             ->assertSeeHtml(e($this->agentSalesIndexUrl($agent)));
+    }
+
+    public function test_super_admin_can_limit_lead_source_totals_to_one_location(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
+        $closedStatus = $this->closedStatus();
+        $miamiLead = Lead::factory()->qualified()->for($zillow, 'source')->recycle($miami)->create();
+        $bostonLead = Lead::factory()->qualified()->for($zillow, 'source')->recycle($boston)->create();
+        Sale::factory()->closed()->withoutAgents()->for($miamiLead)->recycle($closedStatus)->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        Sale::factory()->closed()->withoutAgents()->for($bostonLead)->recycle($closedStatus)->create([
+            'price' => '200000.00',
+            'commission_percentage' => '3.0',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LeadSourcePerformanceTable::class, [
+                'pageFilters' => ['location_id' => $miami->id],
+            ])
+            ->assertCanSeeTableRecords([$zillow])
+            ->assertTableColumnStateSet('closed_sales_count', 1, $zillow)
+            ->assertTableColumnStateSet('closed_volume', '450000.00', $zillow)
+            ->assertTableColumnStateSet('leads_count', 1, $zillow)
+            ->assertSeeHtml(e($this->sourceSalesIndexUrl($zillow, $miami)));
     }
 
     public function test_lead_source_performance_table_shows_each_sources_own_numbers(): void
@@ -517,42 +658,78 @@ class AnalyticsTest extends TestCase
         return $sale;
     }
 
-    private function salesIndexUrl(string $tab): string
+    private function salesIndexUrl(string $tab, ?Location $location = null): string
     {
-        return SaleResource::getUrl('index', [
+        $parameters = [
             'tab' => $tab,
-        ], isAbsolute: false);
+        ];
+
+        if ($location instanceof Location) {
+            $parameters['filters'] = [
+                'location_id' => [
+                    'value' => $location->id,
+                ],
+            ];
+        }
+
+        return SaleResource::getUrl('index', $parameters, isAbsolute: false);
     }
 
-    private function agentSalesIndexUrl(User $agent): string
+    private function agentSalesIndexUrl(User $agent, ?Location $location = null): string
     {
+        $filters = [
+            'agents' => [
+                'value' => $agent->id,
+            ],
+        ];
+
+        if ($location instanceof Location) {
+            $filters['location_id'] = [
+                'value' => $location->id,
+            ];
+        }
+
         return SaleResource::getUrl('index', [
             'tab' => 'closed',
-            'filters' => [
-                'agents' => [
-                    'value' => $agent->id,
-                ],
-            ],
+            'filters' => $filters,
         ], isAbsolute: false);
     }
 
-    private function sourceSalesIndexUrl(LeadSource $source): string
+    private function sourceSalesIndexUrl(LeadSource $source, ?Location $location = null): string
     {
+        $filters = [
+            'source' => [
+                'value' => $source->id,
+            ],
+        ];
+
+        if ($location instanceof Location) {
+            $filters['location_id'] = [
+                'value' => $location->id,
+            ];
+        }
+
         return SaleResource::getUrl('index', [
             'tab' => 'closed',
-            'filters' => [
-                'source' => [
-                    'value' => $source->id,
-                ],
-            ],
+            'filters' => $filters,
         ], isAbsolute: false);
     }
 
-    private function leadsIndexUrl(string $tab): string
+    private function leadsIndexUrl(string $tab, ?Location $location = null): string
     {
-        return LeadResource::getUrl('index', [
+        $parameters = [
             'tab' => $tab,
-        ], isAbsolute: false);
+        ];
+
+        if ($location instanceof Location) {
+            $parameters['filters'] = [
+                'location_id' => [
+                    'value' => $location->id,
+                ],
+            ];
+        }
+
+        return LeadResource::getUrl('index', $parameters, isAbsolute: false);
     }
 
     private function closedStatus(): SaleStatus

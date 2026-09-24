@@ -4,7 +4,9 @@ namespace Tests\Feature\Filament;
 
 use App\Filament\Resources\Leads\LeadResource;
 use App\Filament\Resources\Leads\Pages\ListLeads;
+use App\Filament\Resources\Sales\Pages\ListSales;
 use App\Filament\Resources\Sales\SaleResource;
+use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\UserResource;
 use App\Filament\Widgets\FirmSalesStatsOverview;
 use App\Models\Lead;
@@ -126,5 +128,112 @@ class LocationIsolationTest extends TestCase
             ->assertSee('Closed sales')
             ->assertSee('2')
             ->assertSee('$650,000.00');
+    }
+
+    public function test_location_admin_sales_stats_ignore_another_locations_page_filter(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->admin()->for($miami)->create();
+        $closedStatus = SaleStatus::factory()->create([
+            'name' => 'Closed',
+            'slug' => 'closed',
+        ]);
+
+        Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $miami])->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        Sale::factory()->closed()->withoutAgents()->recycle([$closedStatus, $boston])->create([
+            'price' => '200000.00',
+            'commission_percentage' => '3.0',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(FirmSalesStatsOverview::class, [
+                'pageFilters' => ['location_id' => $boston->id],
+            ])
+            ->assertSee('Closed sales')
+            ->assertSee('1')
+            ->assertSee('$450,000.00')
+            ->assertDontSee('$200,000.00')
+            ->assertDontSee('$650,000.00');
+    }
+
+    public function test_super_admin_can_filter_leads_by_location(): void
+    {
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $miamiLead = Lead::factory()->recycle($miami)->create();
+        $bostonLead = Lead::factory()->recycle($boston)->create();
+
+        Livewire::actingAs($admin)
+            ->test(ListLeads::class)
+            ->assertTableFilterVisible('location_id')
+            ->filterTable('location_id', $miami->id)
+            ->assertCanSeeTableRecords([$miamiLead])
+            ->assertCanNotSeeTableRecords([$bostonLead]);
+    }
+
+    public function test_location_admin_does_not_see_the_lead_location_filter(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ListLeads::class)
+            ->assertTableFilterHidden('location_id');
+    }
+
+    public function test_super_admin_can_filter_sales_by_location(): void
+    {
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $miamiSale = Sale::factory()->recycle($miami)->create();
+        $bostonSale = Sale::factory()->recycle($boston)->create();
+
+        Livewire::actingAs($admin)
+            ->test(ListSales::class)
+            ->assertTableFilterVisible('location_id')
+            ->filterTable('location_id', $miami->id)
+            ->assertCanSeeTableRecords([$miamiSale])
+            ->assertCanNotSeeTableRecords([$bostonSale]);
+    }
+
+    public function test_location_admin_does_not_see_the_sale_location_filter(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ListSales::class)
+            ->assertTableFilterHidden('location_id');
+    }
+
+    public function test_super_admin_can_filter_agents_by_location(): void
+    {
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $miamiAgent = User::factory()->for($miami)->create();
+        $bostonAgent = User::factory()->for($boston)->create();
+
+        Livewire::actingAs($admin)
+            ->test(ListUsers::class)
+            ->assertTableFilterVisible('location_id')
+            ->filterTable('location_id', $miami->id)
+            ->assertCanSeeTableRecords([$miamiAgent])
+            ->assertCanNotSeeTableRecords([$bostonAgent, $admin]);
+    }
+
+    public function test_location_admin_does_not_see_the_agent_location_filter(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ListUsers::class)
+            ->assertTableFilterHidden('location_id');
     }
 }
