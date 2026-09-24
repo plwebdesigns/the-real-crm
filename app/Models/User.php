@@ -117,4 +117,18 @@ class User extends Authenticatable implements FilamentUser
 
         return $query->where('location_id', $locationId);
     }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    #[Scope]
+    protected function inLocation(Builder $query, ?int $locationId): Builder
+    {
+        if ($locationId === null) {
+            return $query;
+        }
+
+        return $query->where($query->qualifyColumn('location_id'), $locationId);
+    }
 }

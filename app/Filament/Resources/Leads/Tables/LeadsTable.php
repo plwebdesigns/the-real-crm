@@ -43,6 +43,11 @@ class LeadsTable
                 TextColumn::make('source.name')
                     ->label('Source')
                     ->sortable(),
+                TextColumn::make('office.name')
+                    ->label('Location')
+                    ->sortable()
+                    ->toggleable()
+                    ->visible(fn (): bool => auth()->user()?->is_super_admin ?? false),
                 TextColumn::make('agents.name')
                     ->label('Agents')
                     ->badge()
@@ -70,6 +75,12 @@ class LeadsTable
                 SelectFilter::make('lead_source_id')
                     ->label('Source')
                     ->relationship('source', 'name'),
+                SelectFilter::make('location_id')
+                    ->label('Location')
+                    ->relationship('office', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->visible(fn (): bool => auth()->user()?->is_super_admin ?? false),
                 SelectFilter::make('agents')
                     ->label('Agent')
                     ->relationship(

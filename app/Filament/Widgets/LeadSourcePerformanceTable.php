@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Sales\SaleResource;
+use App\Filament\Widgets\Concerns\AppliesAnalyticsLocationFilter;
 use App\Models\LeadSource;
 use App\Models\User;
 use Filament\Tables\Columns\TextColumn;
@@ -13,6 +14,8 @@ use Illuminate\Support\Number;
 
 class LeadSourcePerformanceTable extends TableWidget
 {
+    use AppliesAnalyticsLocationFilter;
+
     protected static bool $isDiscovered = false;
 
     protected static ?int $sort = 4;
@@ -93,22 +96,24 @@ class LeadSourcePerformanceTable extends TableWidget
             return LeadSource::query()->whereRaw('0 = 1');
         }
 
+        $locationId = $this->selectedLocationId();
+
         return LeadSource::query()
             ->withCount([
-                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
-                'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending()->visibleTo($user),
-                'leads as leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user),
-                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed()->visibleTo($user),
+                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending()->visibleTo($user)->inLocation($locationId),
+                'leads as leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user)->inLocation($locationId),
+                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed()->visibleTo($user)->inLocation($locationId),
             ])
             ->withSum(
                 [
-                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
+                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
                 ],
                 'price',
             )
             ->withSum(
                 [
-                    'sales as gross_commission' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user),
+                    'sales as gross_commission' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
                 ],
                 'gross_commission',
             )
@@ -122,11 +127,11 @@ class LeadSourcePerformanceTable extends TableWidget
     {
         return SaleResource::getUrl('index', [
             'tab' => 'closed',
-            'filters' => [
+            'filters' => $this->filtersIncludingLocation([
                 'source' => [
                     'value' => $source->id,
                 ],
-            ],
+            ]),
         ], isAbsolute: false);
     }
 }

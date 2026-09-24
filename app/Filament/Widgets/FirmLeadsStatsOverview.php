@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Leads\LeadResource;
+use App\Filament\Widgets\Concerns\AppliesAnalyticsLocationFilter;
 use App\Models\Lead;
 use App\Models\User;
 use Filament\Support\Icons\Heroicon;
@@ -12,6 +13,8 @@ use Illuminate\Support\Number;
 
 class FirmLeadsStatsOverview extends StatsOverviewWidget
 {
+    use AppliesAnalyticsLocationFilter;
+
     protected static bool $isDiscovered = false;
 
     protected static ?int $sort = 2;
@@ -33,10 +36,12 @@ class FirmLeadsStatsOverview extends StatsOverviewWidget
             return [];
         }
 
-        $totalCount = Lead::query()->visibleTo($user)->count();
-        $workingCount = Lead::query()->visibleTo($user)->working()->count();
-        $lostCount = Lead::query()->visibleTo($user)->lost()->count();
-        $closedCount = Lead::query()->visibleTo($user)->closed()->count();
+        $locationId = $this->selectedLocationId();
+
+        $totalCount = Lead::query()->visibleTo($user)->inLocation($locationId)->count();
+        $workingCount = Lead::query()->visibleTo($user)->inLocation($locationId)->working()->count();
+        $lostCount = Lead::query()->visibleTo($user)->inLocation($locationId)->lost()->count();
+        $closedCount = Lead::query()->visibleTo($user)->inLocation($locationId)->closed()->count();
         $closedPercent = $totalCount === 0
             ? 0.0
             : ($closedCount / $totalCount) * 100;
@@ -70,8 +75,15 @@ class FirmLeadsStatsOverview extends StatsOverviewWidget
 
     private function leadsIndexUrl(string $tab): string
     {
-        return LeadResource::getUrl('index', [
+        $parameters = [
             'tab' => $tab,
-        ], isAbsolute: false);
+        ];
+        $filters = $this->filtersIncludingLocation();
+
+        if ($filters !== []) {
+            $parameters['filters'] = $filters;
+        }
+
+        return LeadResource::getUrl('index', $parameters, isAbsolute: false);
     }
 }

@@ -171,4 +171,18 @@ class Lead extends Model
 
         return $query->where('location_id', $user->location_id);
     }
+
+    /**
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function inLocation(Builder $query, ?int $locationId): Builder
+    {
+        if ($locationId === null) {
+            return $query;
+        }
+
+        return $query->where($query->qualifyColumn('location_id'), $locationId);
+    }
 }

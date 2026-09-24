@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Sales\SaleResource;
+use App\Filament\Widgets\Concerns\AppliesAnalyticsLocationFilter;
 use App\Models\Sale;
 use App\Models\User;
 use Filament\Support\Icons\Heroicon;
@@ -12,6 +13,8 @@ use Illuminate\Support\Number;
 
 class FirmSalesStatsOverview extends StatsOverviewWidget
 {
+    use AppliesAnalyticsLocationFilter;
+
     protected static bool $isDiscovered = false;
 
     protected static ?int $sort = 1;
@@ -33,8 +36,11 @@ class FirmSalesStatsOverview extends StatsOverviewWidget
             return [];
         }
 
+        $locationId = $this->selectedLocationId();
+
         $closed = Sale::query()
             ->visibleTo($user)
+            ->inLocation($locationId)
             ->closedInYear(now()->year)
             ->toBase()
             ->selectRaw('count(*) as closed_count')
@@ -64,7 +70,7 @@ class FirmSalesStatsOverview extends StatsOverviewWidget
                 ->color('success'),
             Stat::make(
                 'Pending sales',
-                (string) Sale::query()->visibleTo($user)->pending()->count(),
+                (string) Sale::query()->visibleTo($user)->inLocation($locationId)->pending()->count(),
             )
                 ->description('Open pipeline')
                 ->descriptionIcon(Heroicon::OutlinedClock)
@@ -75,8 +81,15 @@ class FirmSalesStatsOverview extends StatsOverviewWidget
 
     private function salesIndexUrl(string $tab): string
     {
-        return SaleResource::getUrl('index', [
+        $parameters = [
             'tab' => $tab,
-        ], isAbsolute: false);
+        ];
+        $filters = $this->filtersIncludingLocation();
+
+        if ($filters !== []) {
+            $parameters['filters'] = $filters;
+        }
+
+        return SaleResource::getUrl('index', $parameters, isAbsolute: false);
     }
 }
