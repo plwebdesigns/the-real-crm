@@ -99,6 +99,7 @@ class LeadForm
                         Toggle::make('pool'),
                     ]),
                 Textarea::make('notes')
+                    ->helperText('A short summary. Log calls, emails, and meetings in Activities.')
                     ->rows(4),
             ]);
     }

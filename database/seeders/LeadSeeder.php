@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Lead;
+use App\Models\LeadActivity;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\User;
@@ -30,6 +31,14 @@ class LeadSeeder extends Seeder
                     ->create();
 
                 $user->leads()->attach($leads->modelKeys());
+
+                $leads->each(function (Lead $lead) use ($user): void {
+                    LeadActivity::factory()
+                        ->count(fake()->numberBetween(1, 3))
+                        ->for($lead)
+                        ->for($user)
+                        ->create();
+                });
             });
     }
 }

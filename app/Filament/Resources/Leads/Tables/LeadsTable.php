@@ -20,6 +20,7 @@ class LeadsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestActivity'))
             ->columns([
                 TextColumn::make('first_name')
                     ->searchable()
@@ -40,6 +41,12 @@ class LeadsTable
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->sortable(),
+                TextColumn::make('latestActivity.happened_at')
+                    ->label('Last touched')
+                    ->dateTime()
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        return $query->orderByLastTouched($direction);
+                    }),
                 TextColumn::make('source.name')
                     ->label('Source')
                     ->sortable(),

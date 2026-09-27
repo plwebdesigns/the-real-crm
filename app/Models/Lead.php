@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
@@ -95,6 +96,22 @@ class Lead extends Model
     public function sale(): HasOne
     {
         return $this->hasOne(Sale::class);
+    }
+
+    /**
+     * @return HasMany<LeadActivity, $this>
+     */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(LeadActivity::class);
+    }
+
+    /**
+     * @return HasOne<LeadActivity, $this>
+     */
+    public function latestActivity(): HasOne
+    {
+        return $this->hasOne(LeadActivity::class)->latestOfMany('happened_at');
     }
 
     /**
@@ -184,5 +201,25 @@ class Lead extends Model
         }
 
         return $query->where($query->qualifyColumn('location_id'), $locationId);
+    }
+
+    /**
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function orderByLastTouched(Builder $query, string $direction = 'desc'): Builder
+    {
+        $direction = $direction === 'asc' ? 'asc' : 'desc';
+
+        return $query->orderBy(
+            LeadActivity::query()
+                ->select('happened_at')
+                ->whereColumn('lead_activities.lead_id', $query->qualifyColumn('id'))
+                ->orderByDesc('happened_at')
+                ->orderByDesc('id')
+                ->limit(1),
+            $direction,
+        );
     }
 }
