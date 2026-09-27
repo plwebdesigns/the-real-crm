@@ -35,6 +35,12 @@ class AssignedLeadsTable extends TableWidget
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->sortable(),
+                TextColumn::make('latestActivity.happened_at')
+                    ->label('Last touched')
+                    ->dateTime()
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        return $query->orderByLastTouched($direction);
+                    }),
                 TextColumn::make('source.name')
                     ->label('Source')
                     ->sortable(),
@@ -59,7 +65,7 @@ class AssignedLeadsTable extends TableWidget
         $user = auth()->user();
 
         $query = Lead::query()
-            ->with(['status', 'source'])
+            ->with(['status', 'source', 'latestActivity'])
             ->latest('created_at')
             ->orderByDesc('id');
 
