@@ -32,6 +32,10 @@ class AppPanelProvider extends PanelProvider
             ->path('')
             ->login()
             ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): View => view('filament.favicon'),
+            )
+            ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
                 fn (): View => view('filament.login-demo'),
             )

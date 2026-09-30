@@ -14,6 +14,16 @@ class AppPanelProviderTest extends TestCase
             ->assertSee('ICON Realty');
     }
 
+    public function test_login_page_includes_favicon_links(): void
+    {
+        $this->get(route('filament.app.auth.login'))
+            ->assertSee('favicon.png', false)
+            ->assertSee('favicon-32x32.png', false)
+            ->assertSee('favicon-16x16.png', false)
+            ->assertSee('apple-touch-icon.png', false)
+            ->assertSee(route('site.webmanifest'), false);
+    }
+
     public function test_login_page_shows_demo_accounts_and_github_link(): void
     {
         $this->get(route('filament.app.auth.login'))
