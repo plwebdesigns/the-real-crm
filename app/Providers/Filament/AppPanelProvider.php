@@ -31,6 +31,7 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path('')
             ->login()
+            ->emailVerification()
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): View => view('filament.favicon'),

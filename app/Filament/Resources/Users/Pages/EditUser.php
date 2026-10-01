@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\Concerns\ConstrainsUserLocationFields;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\User;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
@@ -27,5 +28,20 @@ class EditUser extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         return $this->constrainUserLocationFields($data);
+    }
+
+    protected function afterSave(): void
+    {
+        $user = $this->getRecord();
+
+        if (! $user instanceof User || ! $user->wasChanged('email')) {
+            return;
+        }
+
+        $user->forceFill([
+            'email_verified_at' => null,
+        ])->save();
+
+        $user->sendEmailVerificationNotification();
     }
 }
