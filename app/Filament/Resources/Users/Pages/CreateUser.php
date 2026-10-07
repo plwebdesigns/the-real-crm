@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\Concerns\ConstrainsUserLocationFields;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateUser extends CreateRecord
@@ -19,5 +20,14 @@ class CreateUser extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         return $this->constrainUserLocationFields($data);
+    }
+
+    protected function afterCreate(): void
+    {
+        $user = $this->getRecord();
+
+        if ($user instanceof User) {
+            $user->sendEmailVerificationNotification();
+        }
     }
 }

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Filament\Auth\Notifications\VerifyEmail;
+use Filament\Facades\Filament;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -19,7 +21,7 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password', 'is_admin', 'is_super_admin', 'location_id'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
@@ -45,6 +47,17 @@ class User extends Authenticatable implements FilamentUser
             'is_admin' => 'boolean',
             'is_super_admin' => 'boolean',
         ];
+    }
+
+    /**
+     * Send Filament's signed verification link after the surrounding transaction commits.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $notification = app(VerifyEmail::class);
+        $notification->url = Filament::getVerifyEmailUrl($this);
+
+        $this->notify($notification->afterCommit());
     }
 
     public function canAccessPanel(Panel $panel): bool
