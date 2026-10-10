@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\BrokerageFeeType;
 use App\Enums\SaleType;
+use Carbon\CarbonInterface;
 use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -185,6 +186,19 @@ class Sale extends Model
         return $query
             ->closed()
             ->whereYear('closed_at', $year);
+    }
+
+    /**
+     * @param  Builder<Sale>  $query
+     * @return Builder<Sale>
+     */
+    #[Scope]
+    protected function closedBetween(Builder $query, CarbonInterface $start, CarbonInterface $end): Builder
+    {
+        return $query
+            ->closed()
+            ->whereDate($query->qualifyColumn('closed_at'), '>=', $start->toDateString())
+            ->whereDate($query->qualifyColumn('closed_at'), '<=', $end->toDateString());
     }
 
     /**
