@@ -46,6 +46,16 @@ class SaleUser extends Pivot
     }
 
     /**
+     * Rounded share of sales.price for one sale_user row.
+     *
+     * The expression expects the sales table to be joined to sale_user.
+     */
+    public static function priceShareExpression(): string
+    {
+        return 'round(sales.price * sale_user.commission_percent / 100.0, 2)';
+    }
+
+    /**
      * @return BelongsTo<Sale, $this>
      */
     public function sale(): BelongsTo
