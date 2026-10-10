@@ -5,6 +5,8 @@ namespace App\Providers\Filament;
 use App\Filament\Widgets\AssignedLeadsTable;
 use App\Filament\Widgets\LeadsStatsOverview;
 use App\Filament\Widgets\SalesStatsOverview;
+use App\Http\Controllers\Auth\AcceptEmailVerificationController;
+use App\Http\Middleware\EnsurePasswordIsSet;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -20,6 +22,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AppPanelProvider extends PanelProvider
@@ -31,7 +34,13 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path('')
             ->login()
+            ->passwordReset()
             ->emailVerification()
+            ->routes(function (): void {
+                Route::get('/email-verification/accept/{user}/{hash}', AcceptEmailVerificationController::class)
+                    ->middleware(['signed', 'throttle:6,1'])
+                    ->name('auth.email-verification.accept');
+            })
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): View => view('filament.favicon'),
@@ -69,6 +78,7 @@ class AppPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                EnsurePasswordIsSet::class,
             ]);
     }
 }

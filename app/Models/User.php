@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\URL;
 
 #[Fillable(['name', 'email', 'password', 'is_admin', 'is_super_admin', 'location_id'])]
 #[Hidden(['password', 'remember_token'])]
@@ -44,9 +45,39 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'password_set_at' => 'datetime',
             'is_admin' => 'boolean',
             'is_super_admin' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::updating(function (User $user): void {
+            if ($user->isDirty('password')) {
+                $user->password_set_at = now();
+            }
+        });
+    }
+
+    public function hasSetPassword(): bool
+    {
+        return $this->password_set_at !== null;
+    }
+
+    /**
+     * Build the signed link that confirms this email address.
+     */
+    public function emailVerificationUrl(): string
+    {
+        return URL::temporarySignedRoute(
+            Filament::getDefaultPanel()->generateRouteName('auth.email-verification.accept'),
+            now()->addMinutes((int) config('auth.verification.expire', 60)),
+            [
+                'user' => $this->getKey(),
+                'hash' => sha1($this->getEmailForVerification()),
+            ],
+        );
     }
 
     /**
@@ -55,7 +86,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function sendEmailVerificationNotification(): void
     {
         $notification = app(VerifyEmail::class);
-        $notification->url = Filament::getVerifyEmailUrl($this);
+        $notification->url = $this->emailVerificationUrl();
 
         $this->notify($notification->afterCommit());
     }

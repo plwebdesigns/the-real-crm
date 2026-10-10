@@ -36,4 +36,11 @@ class AppPanelProviderTest extends TestCase
             ->assertSee('https://github.com/plwebdesigns/the-real-crm', false)
             ->assertSee('View on GitHub');
     }
+
+    public function test_login_page_links_to_password_reset(): void
+    {
+        $this->get(route('filament.app.auth.login'))
+            ->assertSee('Forgot password?')
+            ->assertSee(route('filament.app.auth.password-reset.request'), false);
+    }
 }
