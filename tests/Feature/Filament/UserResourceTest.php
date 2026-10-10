@@ -47,7 +47,6 @@ class UserResourceTest extends TestCase
             ->fillForm([
                 'name' => 'Jordan Agent',
                 'email' => 'jordan@example.com',
-                'password' => 'password',
                 'is_admin' => false,
             ])
             ->call('create')
@@ -71,7 +70,6 @@ class UserResourceTest extends TestCase
             ->fillForm([
                 'name' => 'Escalated Admin',
                 'email' => 'escalated@example.com',
-                'password' => 'password',
                 'is_admin' => true,
             ])
             ->call('create')

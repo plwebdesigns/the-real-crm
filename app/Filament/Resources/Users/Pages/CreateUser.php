@@ -6,6 +6,7 @@ use App\Filament\Resources\Users\Concerns\ConstrainsUserLocationFields;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Str;
 
 class CreateUser extends CreateRecord
 {
@@ -19,7 +20,10 @@ class CreateUser extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        return $this->constrainUserLocationFields($data);
+        $data = $this->constrainUserLocationFields($data);
+        $data['password'] = Str::password();
+
+        return $data;
     }
 
     protected function afterCreate(): void

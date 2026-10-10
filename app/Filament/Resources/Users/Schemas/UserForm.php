@@ -24,12 +24,6 @@ class UserForm
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
-                TextInput::make('password')
-                    ->password()
-                    ->revealable()
-                    ->required(fn (string $operation): bool => $operation === 'create')
-                    ->dehydrated(fn (?string $state): bool => filled($state))
-                    ->maxLength(255),
                 Toggle::make('is_super_admin')
                     ->label('Super administrator')
                     ->visible(fn (): bool => auth()->user()?->is_super_admin ?? false)
