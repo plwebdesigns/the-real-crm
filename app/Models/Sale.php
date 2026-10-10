@@ -81,6 +81,12 @@ class Sale extends Model
                 fn (SaleUser $assignment): bool => $assignment->save(),
             );
         });
+
+        static::deleting(function (Sale $sale): void {
+            $sale->documents()->get()->each(
+                fn (SaleDocument $document): ?bool => $document->delete(),
+            );
+        });
     }
 
     public static function grossCommissionFor(mixed $price, mixed $percentage): string
@@ -148,6 +154,14 @@ class Sale extends Model
     public function agentAssignments(): HasMany
     {
         return $this->hasMany(SaleUser::class);
+    }
+
+    /**
+     * @return HasMany<SaleDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(SaleDocument::class);
     }
 
     /**
