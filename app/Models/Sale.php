@@ -211,7 +211,13 @@ class Sale extends Model
             return $query;
         }
 
-        return $query->where($query->qualifyColumn('location_id'), $user->location_id);
+        $query->where($query->qualifyColumn('location_id'), $user->location_id);
+
+        if ($user->is_admin) {
+            return $query;
+        }
+
+        return $query->assignedTo($user);
     }
 
     /**

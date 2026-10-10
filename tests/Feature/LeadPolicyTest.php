@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Lead;
 use App\Models\Location;
-use App\Models\Sale;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -21,7 +20,6 @@ class LeadPolicyTest extends TestCase
     {
         return [
             'lead' => [Lead::class],
-            'sale' => [Sale::class],
         ];
     }
 
