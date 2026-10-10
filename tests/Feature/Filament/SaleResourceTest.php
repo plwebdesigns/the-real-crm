@@ -59,6 +59,41 @@ class SaleResourceTest extends TestCase
             ->assertOk();
     }
 
+    public function test_agent_sees_only_sales_they_are_assigned_to(): void
+    {
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $coworker = User::factory()->for($location)->create();
+        $ownSale = $this->assignAgent(
+            Sale::factory()->withoutAgents()->recycle($location)->create(),
+            $agent,
+        );
+        $coworkerSale = $this->assignAgent(
+            Sale::factory()->withoutAgents()->recycle($location)->create(),
+            $coworker,
+        );
+
+        Livewire::actingAs($agent)
+            ->test(ListSales::class)
+            ->assertCanSeeTableRecords([$ownSale])
+            ->assertCanNotSeeTableRecords([$coworkerSale]);
+    }
+
+    public function test_agent_cannot_open_another_agents_sale(): void
+    {
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $coworker = User::factory()->for($location)->create();
+        $coworkerSale = $this->assignAgent(
+            Sale::factory()->withoutAgents()->recycle($location)->create(),
+            $coworker,
+        );
+
+        $this->actingAs($agent)
+            ->get(SaleResource::getUrl('edit', ['record' => $coworkerSale], isAbsolute: false))
+            ->assertNotFound();
+    }
+
     public function test_closed_tab_shows_year_to_date_closed_sales_for_the_selected_agent(): void
     {
         $this->travelTo('2026-09-14 12:00:00');
@@ -158,12 +193,18 @@ class SaleResourceTest extends TestCase
         $agent = User::factory()->for($location)->create();
         $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
         $website = LeadSource::factory()->create(['name' => 'Website']);
-        $zillowSale = Sale::factory()->recycle($location)->for(
-            Lead::factory()->recycle($location)->for($zillow, 'source'),
-        )->create();
-        $websiteSale = Sale::factory()->recycle($location)->for(
-            Lead::factory()->recycle($location)->for($website, 'source'),
-        )->create();
+        $zillowSale = $this->assignAgent(
+            Sale::factory()->withoutAgents()->recycle($location)->for(
+                Lead::factory()->recycle($location)->for($zillow, 'source'),
+            )->create(),
+            $agent,
+        );
+        $websiteSale = $this->assignAgent(
+            Sale::factory()->withoutAgents()->recycle($location)->for(
+                Lead::factory()->recycle($location)->for($website, 'source'),
+            )->create(),
+            $agent,
+        );
 
         Livewire::actingAs($agent)
             ->test(ListSales::class, [
@@ -247,7 +288,10 @@ class SaleResourceTest extends TestCase
     {
         $location = Location::factory()->create();
         $agent = User::factory()->for($location)->create();
-        $sale = Sale::factory()->pending()->recycle($location)->create();
+        $sale = $this->assignAgent(
+            Sale::factory()->pending()->withoutAgents()->recycle($location)->create(),
+            $agent,
+        );
         $closedStatus = SaleStatus::factory()->create([
             'name' => 'Closed',
             'slug' => 'closed',

@@ -5,6 +5,7 @@ namespace Tests\Feature\Models;
 use App\Enums\BrokerageFeeType;
 use App\Enums\SaleType;
 use App\Models\Lead;
+use App\Models\Location;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\User;
@@ -211,5 +212,59 @@ class SaleTest extends TestCase
         $this->expectException(QueryException::class);
 
         $sale->agents()->attach($agent, ['commission_percent' => 50]);
+    }
+
+    public function test_non_admin_sees_only_assigned_sales_at_their_location(): void
+    {
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $agent = User::factory()->for($miami)->create();
+        $coworker = User::factory()->for($miami)->create();
+        $ownSale = Sale::factory()->withoutAgents()->recycle($miami)->create();
+        $ownSale->agents()->attach($agent, ['commission_percent' => 100]);
+        $sharedSale = Sale::factory()->withoutAgents()->recycle($miami)->create();
+        $sharedSale->agents()->attach($agent, ['commission_percent' => 50]);
+        $sharedSale->agents()->attach($coworker, ['commission_percent' => 50]);
+        $coworkerSale = Sale::factory()->withoutAgents()->recycle($miami)->create();
+        $coworkerSale->agents()->attach($coworker, ['commission_percent' => 100]);
+        Sale::factory()->withoutAgents()->recycle($miami)->create();
+        $otherLocationSale = Sale::factory()->withoutAgents()->recycle($boston)->create();
+        $otherLocationSale->agents()->attach($agent, ['commission_percent' => 100]);
+
+        $this->assertSame(
+            [$ownSale->id, $sharedSale->id],
+            Sale::query()->visibleTo($agent)->orderBy('id')->pluck('id')->all(),
+        );
+    }
+
+    public function test_location_admin_sees_every_sale_at_their_location(): void
+    {
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->admin()->for($miami)->create();
+        $agent = User::factory()->for($miami)->create();
+        $assignedSale = Sale::factory()->withoutAgents()->recycle($miami)->create();
+        $assignedSale->agents()->attach($agent, ['commission_percent' => 100]);
+        $unassignedSale = Sale::factory()->withoutAgents()->recycle($miami)->create();
+        Sale::factory()->withoutAgents()->recycle($boston)->create();
+
+        $this->assertSame(
+            [$assignedSale->id, $unassignedSale->id],
+            Sale::query()->visibleTo($admin)->orderBy('id')->pluck('id')->all(),
+        );
+    }
+
+    public function test_super_admin_sees_sales_at_every_location(): void
+    {
+        $miami = Location::factory()->create();
+        $boston = Location::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $miamiSale = Sale::factory()->withoutAgents()->recycle($miami)->create();
+        $bostonSale = Sale::factory()->withoutAgents()->recycle($boston)->create();
+
+        $this->assertSame(
+            [$miamiSale->id, $bostonSale->id],
+            Sale::query()->visibleTo($admin)->orderBy('id')->pluck('id')->all(),
+        );
     }
 }
