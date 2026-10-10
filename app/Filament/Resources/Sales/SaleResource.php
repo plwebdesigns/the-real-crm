@@ -6,6 +6,7 @@ use App\Filament\Concerns\ScopesRecordsToLocation;
 use App\Filament\Resources\Sales\Pages\CreateSale;
 use App\Filament\Resources\Sales\Pages\EditSale;
 use App\Filament\Resources\Sales\Pages\ListSales;
+use App\Filament\Resources\Sales\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\Sales\Schemas\SaleForm;
 use App\Filament\Resources\Sales\Tables\SalesTable;
 use App\Models\Sale;
@@ -40,7 +41,7 @@ class SaleResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            DocumentsRelationManager::class,
         ];
     }
 
