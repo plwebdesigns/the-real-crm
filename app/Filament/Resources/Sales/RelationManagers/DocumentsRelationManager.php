@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Sales\RelationManagers;
 use App\Models\Sale;
 use App\Models\SaleDocument;
 use App\Models\User;
+use Closure;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\FileUpload;
@@ -55,6 +56,7 @@ class DocumentsRelationManager extends RelationManager
                     ->directory(fn (): string => 'sale-documents/'.$this->getOwnerRecord()->getKey())
                     ->visibility('private')
                     ->acceptedFileTypes(SaleDocument::ACCEPTED_MIME_TYPES)
+                    ->rule(fn (): Closure => SaleDocument::contentRule())
                     ->maxSize(SaleDocument::MAX_SIZE_KILOBYTES)
                     ->storeFileNamesIn('original_name')
                     ->preventFilePathTampering()

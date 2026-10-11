@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use App\Http\Responses\EmailVerificationResponse;
 use App\Models\LeadDocument;
-use App\Models\SaleDocument;
 use Filament\Auth\Http\Responses\Contracts\EmailVerificationResponse as EmailVerificationResponseContract;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,11 +23,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         config([
-            'livewire.temporary_file_upload.rules' => [
-                'required',
-                'file',
-                'max:'.max(LeadDocument::MAX_SIZE_KILOBYTES, SaleDocument::MAX_SIZE_KILOBYTES),
-            ],
+            // Lead and sale documents are the only Livewire uploads, and they share one allowlist.
+            'livewire.temporary_file_upload.rules' => LeadDocument::temporaryUploadRules(),
         ]);
     }
 }

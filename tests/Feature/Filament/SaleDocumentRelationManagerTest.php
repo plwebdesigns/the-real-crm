@@ -124,11 +124,35 @@ class SaleDocumentRelationManagerTest extends TestCase
             ->callTableAction('create', data: [
                 'path' => UploadedFile::fake()->createWithContent('notes.txt', 'not a contract'),
             ])
+            ->assertHasTableActionErrors(['path']);
+
+        $this->assertSame(0, $sale->documents()->count());
+    }
+
+    public function test_text_bytes_named_as_a_pdf_are_rejected(): void
+    {
+        Storage::fake('local');
+
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $sale = $this->assignAgent(
+            Sale::factory()->withoutAgents()->recycle($location)->create(),
+            $agent,
+        );
+
+        Livewire::actingAs($agent)
+            ->test(DocumentsRelationManager::class, [
+                'ownerRecord' => $sale,
+                'pageClass' => EditSale::class,
+            ])
+            ->callTableAction('create', data: [
+                'path' => UploadedFile::fake()->createWithContent('notes.pdf', 'not a contract'),
+            ])
             ->assertHasTableActionErrors([
                 'path' => function (array $rules, array $messages): bool {
                     return str_contains(
                         implode(' ', $messages),
-                        'must be a file of type: application/pdf, image/jpeg, image/png, image/webp, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.',
+                        'The document must be a PDF, image, Word, or Excel file.',
                     );
                 },
             ]);
