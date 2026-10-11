@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Leads\RelationManagers;
 use App\Models\Lead;
 use App\Models\LeadDocument;
 use App\Models\User;
+use Closure;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\FileUpload;
@@ -55,6 +56,7 @@ class DocumentsRelationManager extends RelationManager
                     ->directory(fn (): string => 'lead-documents/'.$this->getOwnerRecord()->getKey())
                     ->visibility('private')
                     ->acceptedFileTypes(LeadDocument::ACCEPTED_MIME_TYPES)
+                    ->rule(fn (): Closure => LeadDocument::contentRule())
                     ->maxSize(LeadDocument::MAX_SIZE_KILOBYTES)
                     ->storeFileNamesIn('original_name')
                     ->preventFilePathTampering()

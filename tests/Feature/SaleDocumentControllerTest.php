@@ -23,7 +23,7 @@ class SaleDocumentControllerTest extends TestCase
             ->assertRedirect(route('filament.app.auth.login'));
     }
 
-    public function test_assigned_agent_opens_a_pdf_inline_without_a_sandbox_header(): void
+    public function test_assigned_agent_opens_a_pdf_inline_in_a_sandbox(): void
     {
         Storage::fake('local');
 
@@ -39,9 +39,10 @@ class SaleDocumentControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-type', 'application/pdf');
+        $response->assertHeader('content-security-policy', 'sandbox');
+        $response->assertHeader('x-content-type-options', 'nosniff');
         $this->assertStringStartsWith('inline;', (string) $response->headers->get('content-disposition'));
         $this->assertStringContainsString('contract.pdf', (string) $response->headers->get('content-disposition'));
-        $response->assertHeaderMissing('content-security-policy');
     }
 
     public function test_assigned_agent_downloads_a_non_pdf_document(): void
@@ -54,11 +55,12 @@ class SaleDocumentControllerTest extends TestCase
             Sale::factory()->withoutAgents()->recycle($location)->create(),
             $agent,
         );
-        $document = $this->storeDocument($sale, $agent, 'image/jpeg', 'photo.jpg', 'image-bytes');
+        $document = $this->storeDocument($sale, $agent, 'image/jpeg', 'photo.jpg', self::jpegBytes());
 
-        $this->actingAs($agent)
-            ->get($document->viewUrl())
-            ->assertDownload('photo.jpg');
+        $response = $this->actingAs($agent)->get($document->viewUrl());
+
+        $response->assertDownload('photo.jpg');
+        $response->assertHeader('x-content-type-options', 'nosniff');
     }
 
     public function test_agent_cannot_open_a_document_on_another_agents_sale(): void
@@ -136,6 +138,11 @@ class SaleDocumentControllerTest extends TestCase
             'mime_type' => $mimeType,
             'size' => strlen($contents),
         ]);
+    }
+
+    private static function jpegBytes(): string
+    {
+        return (string) hex2bin('ffd8ffe000104a46494600010100000100010000ffd9');
     }
 
     private function assignAgent(Sale $sale, User $agent): Sale

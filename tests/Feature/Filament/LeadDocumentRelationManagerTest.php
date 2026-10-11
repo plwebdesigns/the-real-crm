@@ -128,16 +128,64 @@ class LeadDocumentRelationManagerTest extends TestCase
             ->callTableAction('create', data: [
                 'path' => UploadedFile::fake()->createWithContent('notes.txt', 'not a document'),
             ])
+            ->assertHasTableActionErrors(['path']);
+
+        $this->assertSame(0, $lead->documents()->count());
+    }
+
+    public function test_text_bytes_named_as_a_pdf_are_rejected(): void
+    {
+        Storage::fake('local');
+
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
+
+        Livewire::actingAs($agent)
+            ->test(DocumentsRelationManager::class, [
+                'ownerRecord' => $lead,
+                'pageClass' => EditLead::class,
+            ])
+            ->callTableAction('create', data: [
+                'path' => UploadedFile::fake()->createWithContent('notes.pdf', 'not a document'),
+            ])
             ->assertHasTableActionErrors([
                 'path' => function (array $rules, array $messages): bool {
                     return str_contains(
                         implode(' ', $messages),
-                        'must be a file of type: application/pdf, image/jpeg, image/png, image/webp, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.',
+                        'The document must be a PDF, image, Word, or Excel file.',
                     );
                 },
             ]);
 
         $this->assertSame(0, $lead->documents()->count());
+    }
+
+    public function test_double_extension_is_stored_as_the_detected_type(): void
+    {
+        Storage::fake('local');
+
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
+
+        Livewire::actingAs($agent)
+            ->test(DocumentsRelationManager::class, [
+                'ownerRecord' => $lead,
+                'pageClass' => EditLead::class,
+            ])
+            ->callTableAction('create', data: [
+                'path' => UploadedFile::fake()
+                    ->createWithContent('invoice.pdf.exe', "%PDF-1.4\n%%EOF")
+                    ->mimeType('application/pdf'),
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $document = $lead->documents()->first();
+
+        $this->assertNotNull($document);
+        $this->assertSame('invoice.pdf', $document->original_name);
+        $this->assertSame('application/pdf', $document->mime_type);
     }
 
     public function test_agent_can_delete_a_document_uploaded_by_a_coworker(): void
