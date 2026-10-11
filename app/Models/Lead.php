@@ -51,6 +51,15 @@ class Lead extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Lead $lead): void {
+            $lead->documents()->get()->each(
+                fn (LeadDocument $document): ?bool => $document->delete(),
+            );
+        });
+    }
+
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";
@@ -104,6 +113,14 @@ class Lead extends Model
     public function activities(): HasMany
     {
         return $this->hasMany(LeadActivity::class);
+    }
+
+    /**
+     * @return HasMany<LeadDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(LeadDocument::class);
     }
 
     /**
