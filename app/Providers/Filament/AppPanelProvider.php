@@ -6,6 +6,7 @@ use App\Filament\Widgets\AssignedLeadsTable;
 use App\Filament\Widgets\LeadsStatsOverview;
 use App\Filament\Widgets\SalesStatsOverview;
 use App\Http\Controllers\Auth\AcceptEmailVerificationController;
+use App\Http\Controllers\LeadDocumentController;
 use App\Http\Controllers\SaleDocumentController;
 use App\Http\Middleware\EnsurePasswordIsSet;
 use Filament\Http\Middleware\Authenticate;
@@ -46,6 +47,10 @@ class AppPanelProvider extends PanelProvider
                 Route::get('/sales/{sale}/documents/{document}', SaleDocumentController::class)
                     ->scopeBindings()
                     ->name('sales.documents.show');
+
+                Route::get('/leads/{lead}/documents/{document}', LeadDocumentController::class)
+                    ->scopeBindings()
+                    ->name('leads.documents.show');
             })
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
