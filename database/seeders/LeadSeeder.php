@@ -11,10 +11,13 @@ use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class LeadSeeder extends Seeder
 {
     private const int LEADS_PER_AGENT = 20;
+
+    private ?SeedClock $clock = null;
 
     /**
      * Run the database seeds.
@@ -114,10 +117,11 @@ class LeadSeeder extends Seeder
 
     private function timestampBetween(CarbonInterface $start, CarbonInterface $end): DateTimeInterface
     {
-        if ($end->lessThanOrEqualTo($start)) {
-            return $start;
-        }
+        return $this->clock()->between($start, $end);
+    }
 
-        return fake()->dateTimeBetween($start, $end);
+    private function clock(): SeedClock
+    {
+        return $this->clock ??= SeedClock::fromConnection(DB::connection());
     }
 }
