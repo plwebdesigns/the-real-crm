@@ -20,7 +20,7 @@ class SaleSeeder extends Seeder
         $statuses = SaleStatus::all();
 
         $users->each(function (User $user) use ($statuses): void {
-            $user->leads->unique('id')->take(4)->each(function (Lead $lead) use ($user, $statuses): void {
+            $user->leads->unique('id')->take(8)->each(function (Lead $lead) use ($user, $statuses): void {
                 $sale = Sale::factory()
                     ->withoutAgents()
                     ->for($lead)
