@@ -2,6 +2,10 @@
 
 use Illuminate\Support\Facades\Schedule;
 
+Schedule::command('tasks:send-due-reminders')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
 /**
  * Schedule the migrate:fresh --seed command to run daily at 12:00 AM.
  * This is for the demo environment to ensure the database is always up to date.
