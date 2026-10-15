@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 class LeadSeeder extends Seeder
 {
-    private const int LEADS_PER_AGENT = 20;
+    private const int LEADS_PER_AGENT = 50;
 
     private ?SeedClock $clock = null;
 
@@ -82,7 +82,7 @@ class LeadSeeder extends Seeder
      */
     private function leadsInQuarter(User $user, array $lookups, int $quarter, int $count): Collection
     {
-        [$start, $end] = $this->quarterBounds($quarter);
+        [$start, $end] = SeedClock::quarterBounds($quarter);
         $createdAtFor = $this->timestampBetween(...);
 
         /** @var Collection<int, Lead> $leads */
@@ -100,19 +100,6 @@ class LeadSeeder extends Seeder
             ->create();
 
         return $leads;
-    }
-
-    /**
-     * Inclusive bounds for a quarter of the current year, ending no later than now.
-     *
-     * @return array{0: CarbonInterface, 1: CarbonInterface}
-     */
-    private function quarterBounds(int $quarter): array
-    {
-        $start = now()->startOfYear()->addQuarters($quarter - 1)->startOfDay();
-        $end = $start->copy()->endOfQuarter()->min(now());
-
-        return [$start, $end];
     }
 
     private function timestampBetween(CarbonInterface $start, CarbonInterface $end): DateTimeInterface
