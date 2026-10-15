@@ -50,6 +50,19 @@ class SeedClock
         }
     }
 
+    /**
+     * Inclusive bounds for a quarter of the current year, ending no later than now.
+     *
+     * @return array{0: CarbonInterface, 1: CarbonInterface}
+     */
+    public static function quarterBounds(int $quarter): array
+    {
+        $start = now()->startOfYear()->addQuarters($quarter - 1)->startOfDay();
+        $end = $start->copy()->endOfQuarter()->min(now());
+
+        return [$start, $end];
+    }
+
     public function between(CarbonInterface $start, CarbonInterface $end): CarbonImmutable
     {
         if ($end->lessThanOrEqualTo($start)) {
