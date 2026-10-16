@@ -47,7 +47,7 @@ class SaleForm
                         },
                     )
                     ->getOptionLabelFromRecordUsing(
-                        fn (Lead $record): string => $record->nameWithType(),
+                        fn (Lead $record): string => $record->getFullNameAttribute(),
                     )
                     ->searchable(['first_name', 'last_name', 'email'])
                     ->preload()
