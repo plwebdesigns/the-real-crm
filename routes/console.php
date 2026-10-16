@@ -7,4 +7,4 @@ use Illuminate\Support\Facades\Schedule;
  * This is for the demo environment to ensure the database is always up to date.
  * This command is not run in production.
  */
-Schedule::command('migrate:fresh --seed')->daily()->environments(['staging']);
+Schedule::command('migrate:fresh --seed')->dailyAt('03:00')->environments(['staging']);
