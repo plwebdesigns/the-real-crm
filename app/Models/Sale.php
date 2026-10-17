@@ -165,6 +165,14 @@ class Sale extends Model
     }
 
     /**
+     * @return HasMany<Task, $this>
+     */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    /**
      * @param  Builder<Sale>  $query
      * @return Builder<Sale>
      */

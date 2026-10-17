@@ -8,6 +8,7 @@ use App\Filament\Resources\Leads\Pages\EditLead;
 use App\Filament\Resources\Leads\Pages\ListLeads;
 use App\Filament\Resources\Leads\RelationManagers\ActivitiesRelationManager;
 use App\Filament\Resources\Leads\RelationManagers\DocumentsRelationManager;
+use App\Filament\Resources\Leads\RelationManagers\TasksRelationManager;
 use App\Filament\Resources\Leads\Schemas\LeadForm;
 use App\Filament\Resources\Leads\Tables\LeadsTable;
 use App\Models\Lead;
@@ -48,6 +49,7 @@ class LeadResource extends Resource
     public static function getRelations(): array
     {
         return [
+            TasksRelationManager::class,
             ActivitiesRelationManager::class,
             DocumentsRelationManager::class,
         ];
