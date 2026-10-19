@@ -2,8 +2,10 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\EditProfile;
 use App\Filament\Widgets\AssignedLeadsTable;
 use App\Filament\Widgets\LeadsStatsOverview;
+use App\Filament\Widgets\MyTasksTable;
 use App\Filament\Widgets\SalesStatsOverview;
 use App\Http\Controllers\Auth\AcceptEmailVerificationController;
 use App\Http\Controllers\LeadDocumentController;
@@ -38,6 +40,8 @@ class AppPanelProvider extends PanelProvider
             ->login()
             ->passwordReset()
             ->emailVerification()
+            ->profile(EditProfile::class)
+            ->databaseNotifications()
             ->routes(function (): void {
                 Route::get('/email-verification/accept/{user}/{hash}', AcceptEmailVerificationController::class)
                     ->middleware(['signed', 'throttle:6,1'])
@@ -75,6 +79,7 @@ class AppPanelProvider extends PanelProvider
                 SalesStatsOverview::class,
                 LeadsStatsOverview::class,
                 AssignedLeadsTable::class,
+                MyTasksTable::class,
             ])
             ->middleware([
                 EncryptCookies::class,

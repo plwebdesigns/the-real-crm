@@ -116,6 +116,14 @@ class Lead extends Model
     }
 
     /**
+     * @return HasMany<Task, $this>
+     */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    /**
      * @return HasMany<LeadDocument, $this>
      */
     public function documents(): HasMany

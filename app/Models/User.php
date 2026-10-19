@@ -20,7 +20,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\URL;
 
-#[Fillable(['name', 'email', 'password', 'is_admin', 'is_super_admin', 'location_id'])]
+#[Fillable(['name', 'email', 'password', 'is_admin', 'is_super_admin', 'location_id', 'receives_task_reminder_emails'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
@@ -33,6 +33,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     protected $attributes = [
         'is_admin' => false,
         'is_super_admin' => false,
+        'receives_task_reminder_emails' => false,
     ];
 
     /**
@@ -48,6 +49,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'password_set_at' => 'datetime',
             'is_admin' => 'boolean',
             'is_super_admin' => 'boolean',
+            'receives_task_reminder_emails' => 'boolean',
         ];
     }
 
@@ -141,6 +143,14 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function leadActivities(): HasMany
     {
         return $this->hasMany(LeadActivity::class);
+    }
+
+    /**
+     * @return HasMany<Task, $this>
+     */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
     }
 
     /**

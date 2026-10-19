@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Sales;
 
 use App\Filament\Concerns\ScopesRecordsToLocation;
+use App\Filament\Resources\Leads\RelationManagers\TasksRelationManager;
 use App\Filament\Resources\Sales\Pages\CreateSale;
 use App\Filament\Resources\Sales\Pages\EditSale;
 use App\Filament\Resources\Sales\Pages\ListSales;
@@ -41,6 +42,7 @@ class SaleResource extends Resource
     public static function getRelations(): array
     {
         return [
+            TasksRelationManager::class,
             DocumentsRelationManager::class,
         ];
     }
