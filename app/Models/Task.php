@@ -44,6 +44,8 @@ class Task extends Model
     protected static function booted(): void
     {
         static::saving(function (Task $task): void {
+            $task->assignToAuthenticatedUser();
+
             if ($task->exists && ($task->isDirty('due_at') || $task->isDirty('user_id'))) {
                 $task->reminder_sent_at = null;
             }
@@ -178,6 +180,23 @@ class Task extends Model
                 $query->whereNull($query->qualifyColumn('reminder_sent_at'))
                     ->orWhereColumn('reminder_sent_at', '<', 'due_at');
             });
+    }
+
+    private function assignToAuthenticatedUser(): void
+    {
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return;
+        }
+
+        if ($this->exists) {
+            $this->user_id = $this->getOriginal('user_id');
+
+            return;
+        }
+
+        $this->user_id = $user->id;
     }
 
     private function assertRelationshipsAreValid(): void

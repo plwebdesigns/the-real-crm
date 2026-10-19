@@ -60,9 +60,7 @@ class TasksRelationManager extends RelationManager
                         $data['sale_id'] = $owner->getKey();
                     }
 
-                    if (blank($data['user_id'] ?? null)) {
-                        $data['user_id'] = auth()->id();
-                    }
+                    $data['user_id'] = auth()->id();
 
                     return $data;
                 }),

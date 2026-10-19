@@ -20,10 +20,11 @@ class TaskRelationManagerTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_agent_can_add_a_task_on_a_lead_at_their_office(): void
+    public function test_agent_adds_a_task_for_themselves_on_a_lead(): void
     {
         $location = Location::factory()->create();
         $agent = User::factory()->for($location)->create();
+        $teammate = User::factory()->for($location)->create();
         $lead = Lead::factory()->recycle($location)->create();
         $sale = Sale::factory()->withoutAgents()->for($lead)->create();
 
@@ -34,7 +35,7 @@ class TaskRelationManagerTest extends TestCase
             ])
             ->callTableAction('create', data: [
                 'sale_id' => $sale->id,
-                'user_id' => $agent->id,
+                'user_id' => $teammate->id,
                 'type' => TaskType::Email->value,
                 'due_at' => '2026-10-20 10:00:00',
                 'notes' => 'Email the offer summary.',
@@ -64,7 +65,6 @@ class TaskRelationManagerTest extends TestCase
                 'pageClass' => EditSale::class,
             ])
             ->callTableAction('create', data: [
-                'user_id' => $agent->id,
                 'type' => TaskType::Call->value,
                 'due_at' => '2026-10-20 10:00:00',
                 'notes' => 'Confirm the walkthrough.',
@@ -76,6 +76,7 @@ class TaskRelationManagerTest extends TestCase
         $this->assertNotNull($task);
         $this->assertSame($lead->id, $task->lead_id);
         $this->assertSame($sale->id, $task->sale_id);
+        $this->assertSame($agent->id, $task->user_id);
         $this->assertSame('Confirm the walkthrough.', $task->notes);
     }
 

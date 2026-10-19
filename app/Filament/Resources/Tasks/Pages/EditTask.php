@@ -23,6 +23,17 @@ class EditTask extends EditRecord
         ];
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        unset($data['user_id']);
+
+        return $data;
+    }
+
     private function getTask(): ?Task
     {
         $record = $this->getRecord();

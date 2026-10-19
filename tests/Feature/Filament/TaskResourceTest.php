@@ -21,19 +21,33 @@ class TaskResourceTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_agent_can_create_a_task_for_a_lead_and_sale_at_their_office(): void
+    public function test_the_due_picker_does_not_include_seconds(): void
+    {
+        $agent = User::factory()->create();
+
+        Livewire::actingAs($agent)
+            ->test(CreateTask::class)
+            ->assertSeeHtml('type="datetime-local"')
+            ->assertDontSeeHtml('aria-label="Second"')
+            ->assertDontSeeHtml('step="1"');
+    }
+
+    public function test_agent_creates_a_task_for_themselves_on_a_lead_and_sale(): void
     {
         $location = Location::factory()->create();
         $agent = User::factory()->for($location)->create();
+        $teammate = User::factory()->for($location)->create();
         $lead = Lead::factory()->recycle($location)->create();
         $sale = Sale::factory()->withoutAgents()->for($lead)->create();
 
         Livewire::actingAs($agent)
             ->test(CreateTask::class)
+            ->assertDontSee('Assignee')
+            ->assertDontSee($teammate->name)
             ->fillForm([
                 'lead_id' => $lead->id,
                 'sale_id' => $sale->id,
-                'user_id' => $agent->id,
+                'user_id' => $teammate->id,
                 'type' => TaskType::Text,
                 'due_at' => '2026-10-20 10:00:00',
                 'notes' => 'Send the listing link.',
@@ -77,7 +91,6 @@ class TaskResourceTest extends TestCase
             ->test(CreateTask::class)
             ->fillForm([
                 'lead_id' => $lead->id,
-                'user_id' => $agent->id,
                 'type' => TaskType::Call,
                 'due_at' => '2026-10-20 10:00:00',
                 'notes' => 'Call the other office.',
@@ -100,7 +113,6 @@ class TaskResourceTest extends TestCase
             ->fillForm([
                 'lead_id' => $lead->id,
                 'sale_id' => $otherSale->id,
-                'user_id' => $agent->id,
                 'type' => TaskType::Email,
                 'due_at' => '2026-10-20 10:00:00',
             ])
@@ -204,5 +216,34 @@ class TaskResourceTest extends TestCase
         $this->assertNotNull($activity);
         $this->assertSame(LeadActivityType::Text, $activity->type);
         $this->assertSame('Text the showing time.', $activity->body);
+    }
+
+    public function test_editing_a_task_does_not_change_the_assignee(): void
+    {
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $teammate = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
+        $task = Task::factory()->for($lead)->for($teammate)->create([
+            'notes' => 'Call about the offer.',
+        ]);
+
+        Livewire::actingAs($agent)
+            ->test(EditTask::class, [
+                'record' => $task->getRouteKey(),
+            ])
+            ->assertDontSee('Assignee')
+            ->assertDontSee($teammate->name)
+            ->fillForm([
+                'user_id' => $agent->id,
+                'notes' => 'Call about the revised offer.',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $fresh = $task->fresh();
+
+        $this->assertSame($teammate->id, $fresh->user_id);
+        $this->assertSame('Call about the revised offer.', $fresh->notes);
     }
 }

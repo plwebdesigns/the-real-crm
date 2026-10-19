@@ -137,6 +137,44 @@ class TaskTest extends TestCase
         $this->assertNull($task->fresh()->reminder_sent_at);
     }
 
+    public function test_an_authenticated_user_creates_a_task_for_themselves(): void
+    {
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $teammate = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
+
+        $this->actingAs($agent);
+
+        $task = Task::factory()->for($lead)->for($teammate)->create();
+
+        $this->assertSame($agent->id, $task->user_id);
+    }
+
+    public function test_an_authenticated_user_cannot_change_the_assignee(): void
+    {
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $teammate = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
+        $task = Task::factory()->for($lead)->for($agent)->create([
+            'reminder_sent_at' => '2026-10-15 09:05:00',
+        ]);
+
+        $this->actingAs($teammate);
+
+        $task->update([
+            'user_id' => $teammate->id,
+            'notes' => 'Updated notes.',
+        ]);
+
+        $fresh = $task->fresh();
+
+        $this->assertSame($agent->id, $fresh->user_id);
+        $this->assertSame('Updated notes.', $fresh->notes);
+        $this->assertNotNull($fresh->reminder_sent_at);
+    }
+
     public function test_reassigning_a_task_clears_the_reminder(): void
     {
         $location = Location::factory()->create();

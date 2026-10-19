@@ -95,42 +95,10 @@ class TaskForm
                     ->required(),
                 DateTimePicker::make('due_at')
                     ->label('Due')
+                    ->seconds(false)
                     ->required(),
                 Textarea::make('notes')
                     ->rows(4),
-                Select::make('user_id')
-                    ->label('Assignee')
-                    ->options(function (Get $get) use ($owner): array {
-                        $leadId = self::leadId($owner, $get);
-                        $lead = $leadId === null ? null : Lead::query()->find($leadId);
-
-                        if (! $lead instanceof Lead) {
-                            return [];
-                        }
-
-                        return User::query()
-                            ->where(function (Builder $query) use ($lead): void {
-                                $query->where('location_id', $lead->location_id)
-                                    ->orWhere('is_super_admin', true);
-                            })
-                            ->orderBy('name')
-                            ->pluck('name', 'id')
-                            ->all();
-                    })
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->default(fn (): mixed => auth()->id())
-                    ->rules([
-                        fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get, $owner): void {
-                            $lead = Lead::query()->find(self::leadId($owner, $get));
-                            $assignee = User::query()->find($value);
-
-                            if (! $lead instanceof Lead || ! $assignee instanceof User || ! $assignee->canAccessLocation($lead->location_id)) {
-                                $fail("The assignee must be able to access the lead's office.");
-                            }
-                        },
-                    ]),
             ]);
     }
 
