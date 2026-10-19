@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\EditProfile;
 use App\Filament\Widgets\AssignedLeadsTable;
 use App\Filament\Widgets\LeadsStatsOverview;
 use App\Filament\Widgets\MyTasksTable;
@@ -39,6 +40,8 @@ class AppPanelProvider extends PanelProvider
             ->login()
             ->passwordReset()
             ->emailVerification()
+            ->profile(EditProfile::class)
+            ->databaseNotifications()
             ->routes(function (): void {
                 Route::get('/email-verification/accept/{user}/{hash}', AcceptEmailVerificationController::class)
                     ->middleware(['signed', 'throttle:6,1'])

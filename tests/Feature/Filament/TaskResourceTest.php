@@ -21,6 +21,38 @@ class TaskResourceTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    public function test_the_tasks_icon_shows_how_many_follow_ups_are_due(): void
+    {
+        $this->travelTo('2026-10-15 12:00:00');
+
+        $location = Location::factory()->create();
+        $agent = User::factory()->for($location)->create();
+        $teammate = User::factory()->for($location)->create();
+        $lead = Lead::factory()->recycle($location)->create();
+        Task::factory()->for($lead)->for($agent)->create([
+            'due_at' => '2026-10-15 09:00:00',
+        ]);
+        Task::factory()->for($lead)->for($agent)->create([
+            'due_at' => '2026-10-15 10:00:00',
+        ]);
+        Task::factory()->for($lead)->for($agent)->create([
+            'due_at' => '2026-10-16 09:00:00',
+        ]);
+        Task::factory()->for($lead)->for($agent)->completed()->create([
+            'due_at' => '2026-10-15 08:00:00',
+        ]);
+        Task::factory()->for($lead)->for($teammate)->create([
+            'due_at' => '2026-10-15 09:00:00',
+        ]);
+
+        $this->actingAs($agent)
+            ->get(TaskResource::getUrl('index', isAbsolute: false))
+            ->assertOk()
+            ->assertSee('Due follow-ups')
+            ->assertSeeHtml('fi-sidebar-item-badge-ctn')
+            ->assertSee('2');
+    }
+
     public function test_the_due_picker_does_not_include_seconds(): void
     {
         $agent = User::factory()->create();

@@ -10,7 +10,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('tasks:send-due-reminders')]
-#[Description('Email assignees when a follow-up task is due')]
+#[Description('Notify assignees when a follow-up task is due')]
 class SendDueTaskReminders extends Command
 {
     /**
