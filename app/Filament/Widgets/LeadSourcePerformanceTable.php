@@ -4,13 +4,17 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Sales\SaleResource;
 use App\Filament\Widgets\Concerns\AppliesAnalyticsLocationFilter;
+use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\User;
+use Carbon\CarbonInterface;
+use Filament\Actions\Action;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Number;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LeadSourcePerformanceTable extends TableWidget
 {
@@ -18,7 +22,7 @@ class LeadSourcePerformanceTable extends TableWidget
 
     protected static bool $isDiscovered = false;
 
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 7;
 
     protected int|string|array $columnSpan = 'full';
 
@@ -71,15 +75,14 @@ class LeadSourcePerformanceTable extends TableWidget
                 TextColumn::make('closed_percent')
                     ->label('Closed %')
                     ->color('success')
-                    ->getStateUsing(function (LeadSource $record): string {
-                        $leadsCount = (int) $record->leads_count;
-                        $closedCount = (int) $record->closed_leads_count;
-                        $closedPercent = $leadsCount === 0
-                            ? 0.0
-                            : ($closedCount / $leadsCount) * 100;
-
-                        return Number::percentage($closedPercent, precision: 0) ?: '0%';
-                    }),
+                    ->sortable()
+                    ->getStateUsing(fn (LeadSource $record): string => $this->formatClosedPercent($record->closed_percent)),
+            ])
+            ->headerActions([
+                Action::make('export')
+                    ->label('Export CSV')
+                    ->icon(Heroicon::OutlinedArrowDownTray)
+                    ->action(fn (): StreamedResponse => $this->exportCsv()),
             ])
             ->defaultSort('closed_volume', 'desc');
     }
@@ -89,38 +92,81 @@ class LeadSourcePerformanceTable extends TableWidget
      */
     private function sourcesQuery(): Builder
     {
-        $year = now()->year;
         $user = auth()->user();
 
         if (! $user instanceof User) {
             return LeadSource::query()->whereRaw('0 = 1');
         }
 
+        [$start, $end] = $this->selectedPeriod()->range();
         $locationId = $this->selectedLocationId();
 
         return LeadSource::query()
             ->withCount([
-                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedBetween($start, $end)->visibleTo($user)->inLocation($locationId),
                 'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending()->visibleTo($user)->inLocation($locationId),
-                'leads as leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user)->inLocation($locationId),
-                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed()->visibleTo($user)->inLocation($locationId),
+                'leads as leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user)->inLocation($locationId)->createdBetween($start, $end),
             ])
             ->withSum(
                 [
-                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedBetween($start, $end)->visibleTo($user)->inLocation($locationId),
                 ],
                 'price',
             )
             ->withSum(
                 [
-                    'sales as gross_commission' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                    'sales as gross_commission' => fn (Builder $sales): Builder => $sales->closedBetween($start, $end)->visibleTo($user)->inLocation($locationId),
                 ],
                 'gross_commission',
+            )
+            ->selectSub(
+                $this->closedPercentQuery($user, $locationId, $start, $end),
+                'closed_percent',
             )
             ->withCasts([
                 'closed_volume' => 'decimal:2',
                 'gross_commission' => 'decimal:2',
             ]);
+    }
+
+    /**
+     * @return Builder<Lead>
+     */
+    private function closedPercentQuery(User $user, ?int $locationId, CarbonInterface $start, CarbonInterface $end): Builder
+    {
+        return Lead::query()
+            ->selectClosedPercent()
+            ->whereColumn('leads.lead_source_id', 'lead_sources.id')
+            ->createdBetween($start, $end)
+            ->visibleTo($user)
+            ->inLocation($locationId);
+    }
+
+    private function exportCsv(): StreamedResponse
+    {
+        $records = $this->getTableQueryForExport()->get();
+
+        return $this->downloadCsv(
+            'lead-sources.csv',
+            [
+                'Name',
+                'Closed sales',
+                'Closed volume',
+                'Gross commission',
+                'Pending sales',
+                'Total leads',
+                'Closed %',
+            ],
+            $records->map(fn (LeadSource $record): array => [
+                $record->name,
+                (int) $record->closed_sales_count,
+                $record->closed_volume,
+                $record->gross_commission,
+                (int) $record->pending_sales_count,
+                (int) $record->leads_count,
+                $this->formatClosedPercent($record->closed_percent),
+            ]),
+        );
     }
 
     private function salesIndexUrl(LeadSource $source): string

@@ -4,13 +4,18 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Sales\SaleResource;
 use App\Filament\Widgets\Concerns\AppliesAnalyticsLocationFilter;
+use App\Models\Lead;
+use App\Models\Sale;
 use App\Models\SaleUser;
 use App\Models\User;
+use Carbon\CarbonInterface;
+use Filament\Actions\Action;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Number;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AgentPerformanceTable extends TableWidget
 {
@@ -18,7 +23,7 @@ class AgentPerformanceTable extends TableWidget
 
     protected static bool $isDiscovered = false;
 
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 6;
 
     protected int|string|array $columnSpan = 'full';
 
@@ -53,7 +58,13 @@ class AgentPerformanceTable extends TableWidget
                     ->color('success')
                     ->sortable(),
                 TextColumn::make('closed_volume')
-                    ->label('Closed volume')
+                    ->label('Production volume')
+                    ->money('USD')
+                    ->default(0)
+                    ->color('success')
+                    ->sortable(),
+                TextColumn::make('credited_volume')
+                    ->label('Credited volume')
                     ->money('USD')
                     ->default(0)
                     ->color('success')
@@ -88,15 +99,23 @@ class AgentPerformanceTable extends TableWidget
                 TextColumn::make('closed_percent')
                     ->label('Closed %')
                     ->color('success')
-                    ->getStateUsing(function (User $record): string {
-                        $assignedCount = (int) $record->assigned_leads_count;
-                        $closedCount = (int) $record->closed_leads_count;
-                        $closedPercent = $assignedCount === 0
-                            ? 0.0
-                            : ($closedCount / $assignedCount) * 100;
-
-                        return Number::percentage($closedPercent, precision: 0) ?: '0%';
-                    }),
+                    ->sortable()
+                    ->getStateUsing(fn (User $record): string => $this->formatClosedPercent($record->closed_percent)),
+                TextColumn::make('activities_count')
+                    ->label('Activities')
+                    ->numeric()
+                    ->sortable(),
+                TextColumn::make('overdue_tasks_count')
+                    ->label('Overdue tasks')
+                    ->numeric()
+                    ->color('danger')
+                    ->sortable(),
+            ])
+            ->headerActions([
+                Action::make('export')
+                    ->label('Export CSV')
+                    ->icon(Heroicon::OutlinedArrowDownTray)
+                    ->action(fn (): StreamedResponse => $this->exportCsv()),
             ])
             ->defaultSort('net_commission', 'desc');
     }
@@ -106,13 +125,13 @@ class AgentPerformanceTable extends TableWidget
      */
     private function agentsQuery(): Builder
     {
-        $year = now()->year;
         $user = auth()->user();
 
         if (! $user instanceof User) {
             return User::query()->whereRaw('0 = 1');
         }
 
+        [$start, $end] = $this->selectedPeriod()->range();
         $locationId = $this->selectedLocationId();
 
         return User::query()
@@ -120,21 +139,33 @@ class AgentPerformanceTable extends TableWidget
             ->inLocation($locationId)
             ->with('location')
             ->withCount([
-                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                'sales as closed_sales_count' => fn (Builder $sales): Builder => $sales->closedBetween($start, $end)->visibleTo($user)->inLocation($locationId),
                 'sales as pending_sales_count' => fn (Builder $sales): Builder => $sales->pending()->visibleTo($user)->inLocation($locationId),
-                'leads as assigned_leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user)->inLocation($locationId),
-                'leads as working_leads_count' => fn (Builder $leads): Builder => $leads->working()->visibleTo($user)->inLocation($locationId),
-                'leads as closed_leads_count' => fn (Builder $leads): Builder => $leads->closed()->visibleTo($user)->inLocation($locationId),
+                'leads as assigned_leads_count' => fn (Builder $leads): Builder => $leads->visibleTo($user)->inLocation($locationId)->createdBetween($start, $end),
+                'leads as working_leads_count' => fn (Builder $leads): Builder => $leads->working()->visibleTo($user)->inLocation($locationId)->createdBetween($start, $end),
+                'leadActivities as activities_count' => fn (Builder $activities): Builder => $activities
+                    ->outreach()
+                    ->happenedBetween($start, $end)
+                    ->whereHas(
+                        'lead',
+                        fn (Builder $lead): Builder => $lead->visibleTo($user)->inLocation($locationId),
+                    ),
+                'tasks as overdue_tasks_count' => fn (Builder $tasks): Builder => $tasks
+                    ->overdue()
+                    ->whereHas(
+                        'lead',
+                        fn (Builder $lead): Builder => $lead->visibleTo($user)->inLocation($locationId),
+                    ),
             ])
             ->withSum(
                 [
-                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                    'sales as closed_volume' => fn (Builder $sales): Builder => $sales->closedBetween($start, $end)->visibleTo($user)->inLocation($locationId),
                 ],
                 'price',
             )
             ->withSum(
                 [
-                    'sales as brokerage_fee' => fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                    'sales as brokerage_fee' => fn (Builder $sales): Builder => $sales->closedBetween($start, $end)->visibleTo($user)->inLocation($locationId),
                 ],
                 'brokerage_fee',
             )
@@ -144,14 +175,92 @@ class AgentPerformanceTable extends TableWidget
                     ->whereColumn('sale_user.user_id', 'users.id')
                     ->whereHas(
                         'sale',
-                        fn (Builder $sales): Builder => $sales->closedInYear($year)->visibleTo($user)->inLocation($locationId),
+                        fn (Builder $sales): Builder => $sales->closedBetween($start, $end)->visibleTo($user)->inLocation($locationId),
                     ),
+                'credited_volume' => $this->creditedVolumeQuery($user, $locationId, $start, $end),
             ])
+            ->selectSub(
+                $this->closedPercentQuery($user, $locationId, $start, $end),
+                'closed_percent',
+            )
             ->withCasts([
                 'closed_volume' => 'decimal:2',
+                'credited_volume' => 'decimal:2',
                 'brokerage_fee' => 'decimal:2',
                 'net_commission' => 'decimal:2',
             ]);
+    }
+
+    /**
+     * @return Builder<SaleUser>
+     */
+    private function creditedVolumeQuery(User $user, ?int $locationId, CarbonInterface $start, CarbonInterface $end): Builder
+    {
+        return SaleUser::query()
+            ->selectRaw('coalesce(sum('.SaleUser::priceShareExpression().'), 0)')
+            ->join('sales', 'sales.id', '=', 'sale_user.sale_id')
+            ->whereColumn('sale_user.user_id', 'users.id')
+            ->whereIn(
+                'sale_user.sale_id',
+                Sale::query()
+                    ->closedBetween($start, $end)
+                    ->visibleTo($user)
+                    ->inLocation($locationId)
+                    ->select('sales.id'),
+            );
+    }
+
+    /**
+     * @return Builder<Lead>
+     */
+    private function closedPercentQuery(User $user, ?int $locationId, CarbonInterface $start, CarbonInterface $end): Builder
+    {
+        return Lead::query()
+            ->selectClosedPercent()
+            ->join('lead_user', 'lead_user.lead_id', '=', 'leads.id')
+            ->whereColumn('lead_user.user_id', 'users.id')
+            ->createdBetween($start, $end)
+            ->visibleTo($user)
+            ->inLocation($locationId);
+    }
+
+    private function exportCsv(): StreamedResponse
+    {
+        $records = $this->getTableQueryForExport()->get();
+
+        return $this->downloadCsv(
+            'agent-performance.csv',
+            [
+                'Name',
+                'Location',
+                'Closed sales',
+                'Production volume',
+                'Credited volume',
+                'Brokerage fees',
+                'Net commission',
+                'Pending sales',
+                'Assigned leads',
+                'Working leads',
+                'Closed %',
+                'Activities',
+                'Overdue tasks',
+            ],
+            $records->map(fn (User $record): array => [
+                $record->name,
+                $record->location?->name ?? '',
+                (int) $record->closed_sales_count,
+                $record->closed_volume,
+                $record->credited_volume,
+                $record->brokerage_fee,
+                $record->net_commission,
+                (int) $record->pending_sales_count,
+                (int) $record->assigned_leads_count,
+                (int) $record->working_leads_count,
+                $this->formatClosedPercent($record->closed_percent),
+                (int) $record->activities_count,
+                (int) $record->overdue_tasks_count,
+            ]),
+        );
     }
 
     private function salesIndexUrl(User $user): string

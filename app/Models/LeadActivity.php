@@ -3,8 +3,11 @@
 namespace App\Models;
 
 use App\Enums\LeadActivityType;
+use Carbon\CarbonInterface;
 use Database\Factories\LeadActivityFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,5 +49,34 @@ class LeadActivity extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Calls, emails, texts, and meetings. Notes are not outreach.
+     *
+     * @param  Builder<LeadActivity>  $query
+     * @return Builder<LeadActivity>
+     */
+    #[Scope]
+    protected function outreach(Builder $query): Builder
+    {
+        return $query->whereIn($query->qualifyColumn('type'), [
+            LeadActivityType::Call,
+            LeadActivityType::Email,
+            LeadActivityType::Text,
+            LeadActivityType::Meeting,
+        ]);
+    }
+
+    /**
+     * @param  Builder<LeadActivity>  $query
+     * @return Builder<LeadActivity>
+     */
+    #[Scope]
+    protected function happenedBetween(Builder $query, CarbonInterface $start, CarbonInterface $end): Builder
+    {
+        return $query
+            ->whereDate($query->qualifyColumn('happened_at'), '>=', $start->toDateString())
+            ->whereDate($query->qualifyColumn('happened_at'), '<=', $end->toDateString());
     }
 }
