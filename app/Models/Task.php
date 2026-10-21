@@ -170,6 +170,18 @@ class Task extends Model
      * @return Builder<Task>
      */
     #[Scope]
+    protected function overdue(Builder $query): Builder
+    {
+        return $query
+            ->open()
+            ->where($query->qualifyColumn('due_at'), '<', now());
+    }
+
+    /**
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
+     */
+    #[Scope]
     protected function dueForReminder(Builder $query): Builder
     {
         return $query

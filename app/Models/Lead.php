@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\SaleType;
+use Carbon\CarbonInterface;
 use Database\Factories\LeadFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -198,6 +199,67 @@ class Lead extends Model
             'sale',
             fn (Builder $sale): Builder => $sale->closed(),
         );
+    }
+
+    /**
+     * Leads created during the analytics cohort window.
+     *
+     * Close rate uses this cohort: a lead created outside the period cannot
+     * move the period's close rate, including a lead that closed earlier.
+     *
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function createdBetween(Builder $query, CarbonInterface $start, CarbonInterface $end): Builder
+    {
+        return $query
+            ->whereDate($query->qualifyColumn('created_at'), '>=', $start->toDateString())
+            ->whereDate($query->qualifyColumn('created_at'), '<=', $end->toDateString());
+    }
+
+    /**
+     * Working leads with no activity in the last `$days` days.
+     *
+     * Leads created inside that window are excluded so a new lead is not
+     * stale before it has had time to be touched.
+     *
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function staleWorking(Builder $query, int $days = 14): Builder
+    {
+        $cutoff = now()->subDays($days);
+
+        return $query
+            ->working()
+            ->where($query->qualifyColumn('created_at'), '<=', $cutoff)
+            ->whereDoesntHave(
+                'activities',
+                fn (Builder $activities): Builder => $activities->where('happened_at', '>=', $cutoff),
+            );
+    }
+
+    /**
+     * One scalar: the percent of leads in this query that have a closed sale.
+     * Callers add the cohort and ownership constraints. Returns 0 when the
+     * cohort is empty so the column can be sorted.
+     *
+     * @param  Builder<Lead>  $query
+     * @return Builder<Lead>
+     */
+    #[Scope]
+    protected function selectClosedPercent(Builder $query): Builder
+    {
+        return $query->selectRaw(
+            'case when count(*) = 0 then 0 else round(100.0 * sum(case when '.self::closedSaleExistsSql().' then 1 else 0 end) / count(*), 0) end',
+        );
+    }
+
+    public static function closedSaleExistsSql(): string
+    {
+        return 'exists (select 1 from sales inner join sale_statuses on sale_statuses.id = sales.sale_status_id where sales.lead_id = leads.id and sale_statuses.slug = \'closed\')';
     }
 
     /**

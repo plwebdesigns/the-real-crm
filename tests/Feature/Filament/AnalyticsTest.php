@@ -2,23 +2,32 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Enums\AnalyticsPeriod;
+use App\Enums\LeadActivityType;
+use App\Enums\SaleType;
 use App\Filament\Pages\Analytics;
 use App\Filament\Resources\Leads\LeadResource;
 use App\Filament\Resources\Sales\SaleResource;
 use App\Filament\Widgets\AgentPerformanceTable;
 use App\Filament\Widgets\AssignedLeadsTable;
+use App\Filament\Widgets\ClosedVolumeChart;
 use App\Filament\Widgets\FirmLeadsStatsOverview;
 use App\Filament\Widgets\FirmSalesStatsOverview;
 use App\Filament\Widgets\LeadSourcePerformanceTable;
 use App\Filament\Widgets\LeadsStatsOverview;
+use App\Filament\Widgets\LeadTypePerformanceTable;
+use App\Filament\Widgets\LocationPerformanceTable;
 use App\Filament\Widgets\SalesStatsOverview;
 use App\Models\Lead;
+use App\Models\LeadActivity;
 use App\Models\LeadSource;
 use App\Models\Location;
 use App\Models\Sale;
 use App\Models\SaleStatus;
 use App\Models\SaleUser;
+use App\Models\Task;
 use App\Models\User;
+use Filament\Actions\Testing\TestAction;
 use Filament\Pages\Dashboard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -51,7 +60,10 @@ class AnalyticsTest extends TestCase
         Livewire::actingAs($admin)
             ->test(Analytics::class)
             ->assertSee('All locations')
-            ->assertSee($miami->name);
+            ->assertSee('This month')
+            ->assertSee('Year to date')
+            ->assertSee($miami->name)
+            ->assertSeeLivewire(LocationPerformanceTable::class);
     }
 
     public function test_location_admin_does_not_see_a_location_filter_on_analytics(): void
@@ -62,7 +74,9 @@ class AnalyticsTest extends TestCase
         Livewire::actingAs($admin)
             ->test(Analytics::class)
             ->assertDontSee('All locations')
-            ->assertDontSee($miami->name);
+            ->assertDontSee($miami->name)
+            ->assertSee('This month')
+            ->assertDontSeeLivewire(LocationPerformanceTable::class);
     }
 
     public function test_admin_can_view_analytics(): void
@@ -74,6 +88,9 @@ class AnalyticsTest extends TestCase
             ->assertOk()
             ->assertSeeLivewire(FirmSalesStatsOverview::class)
             ->assertSeeLivewire(FirmLeadsStatsOverview::class)
+            ->assertSeeLivewire(ClosedVolumeChart::class)
+            ->assertSeeLivewire(LocationPerformanceTable::class)
+            ->assertSeeLivewire(LeadTypePerformanceTable::class)
             ->assertSeeLivewire(AgentPerformanceTable::class)
             ->assertSeeLivewire(LeadSourcePerformanceTable::class)
             ->assertDontSeeLivewire(SalesStatsOverview::class)
@@ -92,7 +109,10 @@ class AnalyticsTest extends TestCase
             ->assertDontSeeLivewire(FirmSalesStatsOverview::class)
             ->assertDontSeeLivewire(FirmLeadsStatsOverview::class)
             ->assertDontSeeLivewire(AgentPerformanceTable::class)
-            ->assertDontSeeLivewire(LeadSourcePerformanceTable::class);
+            ->assertDontSeeLivewire(LeadSourcePerformanceTable::class)
+            ->assertDontSeeLivewire(ClosedVolumeChart::class)
+            ->assertDontSeeLivewire(LocationPerformanceTable::class)
+            ->assertDontSeeLivewire(LeadTypePerformanceTable::class);
     }
 
     public function test_super_admin_can_limit_firm_sales_stats_to_one_location(): void
@@ -162,10 +182,16 @@ class AnalyticsTest extends TestCase
             ->assertSee('$650,000.00')
             ->assertSee('Gross commission')
             ->assertSee('$19,500.00')
+            ->assertSee('Brokerage fees')
+            ->assertSee('$500.00')
+            ->assertDontSee('$750.00')
             ->assertSee('Pending sales')
             ->assertSee('1')
-            ->assertSee('Year to date')
-            ->assertSee('Open pipeline');
+            ->assertSee('Jan 1 – Sep 14, 2026')
+            ->assertSee('Up from none in the prior period')
+            ->assertSee('Open pipeline')
+            ->assertSee('$300,000.00')
+            ->assertSee('$9,000.00');
     }
 
     public function test_firm_closed_sales_stats_count_a_split_sale_once(): void
@@ -201,7 +227,9 @@ class AnalyticsTest extends TestCase
             ->assertSee('Closed sales')
             ->assertSee('1')
             ->assertSee('$450,000.00')
-            ->assertSee('$13,500.00');
+            ->assertSee('$13,500.00')
+            ->assertSee('$250.00')
+            ->assertDontSee('$500.00');
     }
 
     public function test_firm_sales_stats_do_not_include_last_years_closed_sale(): void
@@ -231,6 +259,8 @@ class AnalyticsTest extends TestCase
             ->test(FirmSalesStatsOverview::class)
             ->assertSee('$450,000.00')
             ->assertSee('$13,500.00')
+            ->assertSee('$250.00')
+            ->assertDontSee('$500.00')
             ->assertDontSee('$800,000.00')
             ->assertDontSee('$24,000.00');
     }
@@ -383,6 +413,7 @@ class AnalyticsTest extends TestCase
             ->assertCanSeeTableRecords([$firstAgent, $secondAgent, $admin])
             ->assertTableColumnStateSet('closed_sales_count', 1, $firstAgent)
             ->assertTableColumnStateSet('closed_volume', '450000.00', $firstAgent)
+            ->assertTableColumnStateSet('credited_volume', '450000.00', $firstAgent)
             ->assertTableColumnStateSet('brokerage_fee', '250.00', $firstAgent)
             ->assertTableColumnStateSet('net_commission', '13250.00', $firstAgent)
             ->assertTableColumnStateSet('pending_sales_count', 1, $firstAgent)
@@ -391,6 +422,7 @@ class AnalyticsTest extends TestCase
             ->assertTableColumnStateSet('closed_percent', '0%', $firstAgent)
             ->assertTableColumnStateSet('closed_sales_count', 1, $secondAgent)
             ->assertTableColumnStateSet('closed_volume', '200000.00', $secondAgent)
+            ->assertTableColumnStateSet('credited_volume', '200000.00', $secondAgent)
             ->assertTableColumnStateSet('brokerage_fee', '250.00', $secondAgent)
             ->assertTableColumnStateSet('net_commission', '5750.00', $secondAgent)
             ->assertTableColumnStateSet('pending_sales_count', 0, $secondAgent)
@@ -431,6 +463,10 @@ class AnalyticsTest extends TestCase
             ->test(AgentPerformanceTable::class)
             ->assertTableColumnStateSet('closed_volume', '450000.00', $firstAgent)
             ->assertTableColumnStateSet('closed_volume', '450000.00', $secondAgent)
+            ->assertTableColumnStateSet('credited_volume', '225000.00', $firstAgent)
+            ->assertTableColumnStateSet('credited_volume', '225000.00', $secondAgent)
+            ->assertSee('Production volume')
+            ->assertSee('Credited volume')
             ->assertTableColumnStateSet('brokerage_fee', '250.00', $firstAgent)
             ->assertTableColumnStateSet('brokerage_fee', '250.00', $secondAgent)
             ->assertTableColumnStateSet('net_commission', '6625.00', $firstAgent)
@@ -636,6 +672,331 @@ class AnalyticsTest extends TestCase
         Livewire::actingAs($admin)
             ->test(LeadSourcePerformanceTable::class)
             ->assertSeeHtml(e($this->sourceSalesIndexUrl($source)));
+    }
+
+    public function test_this_month_compares_closed_volume_with_the_same_days_last_month(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $closedStatus = $this->closedStatus();
+        Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create([
+            'price' => '100000.00',
+            'commission_percentage' => '3.0',
+            'closed_at' => '2026-09-02',
+        ]);
+        Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create([
+            'price' => '200000.00',
+            'commission_percentage' => '3.0',
+            'closed_at' => '2026-08-02',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(FirmSalesStatsOverview::class, [
+                'pageFilters' => ['period' => AnalyticsPeriod::Month->value],
+            ])
+            ->assertSee('$100,000.00')
+            ->assertDontSee('$200,000.00')
+            ->assertSee('Sep 1 – Sep 14, 2026')
+            ->assertSee('50% below prior period');
+    }
+
+    public function test_last_year_period_includes_last_years_closed_sale(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+
+        Sale::factory()->closed()->withoutAgents()->recycle($this->closedStatus())->create([
+            'price' => '800000.00',
+            'commission_percentage' => '3.0',
+            'closed_at' => '2025-06-01',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(FirmSalesStatsOverview::class, [
+                'pageFilters' => ['period' => AnalyticsPeriod::LastYear->value],
+            ])
+            ->assertSee('$800,000.00')
+            ->assertSee('Jan 1 – Dec 31, 2025');
+    }
+
+    public function test_lead_stats_ignore_leads_created_before_the_period(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        Lead::factory()->asNew()->create();
+        Lead::factory()->lost()->create(['created_at' => '2025-03-01']);
+
+        Livewire::actingAs($admin)
+            ->test(FirmLeadsStatsOverview::class)
+            ->assertSeeInOrder([
+                'Total leads',
+                '1',
+                'Lost leads',
+                '0',
+            ]);
+    }
+
+    public function test_last_year_lead_stats_include_leads_created_last_year(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        Lead::factory()->asNew()->create();
+        Lead::factory()->lost()->create(['created_at' => '2025-03-01']);
+
+        Livewire::actingAs($admin)
+            ->test(FirmLeadsStatsOverview::class, [
+                'pageFilters' => ['period' => AnalyticsPeriod::LastYear->value],
+            ])
+            ->assertSeeInOrder([
+                'Total leads',
+                '1',
+                'Lost leads',
+                '1',
+            ]);
+    }
+
+    public function test_median_days_to_close_uses_sales_closed_in_the_period(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $lead = Lead::factory()->qualified()->create([
+            'created_at' => '2026-09-04',
+        ]);
+        Sale::factory()->closed()->for($lead)->recycle($this->closedStatus())->create([
+            'closed_at' => '2026-09-14',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(FirmLeadsStatsOverview::class)
+            ->assertSee('Median days to close')
+            ->assertSee('10 days');
+    }
+
+    public function test_stale_working_leads_are_untouched_for_14_days(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $agent = User::factory()->create();
+        Lead::factory()->contacted()->create(['created_at' => now()->subDays(20)]);
+        Lead::factory()->contacted()->create(['created_at' => now()->subDays(3)]);
+        $touched = Lead::factory()->contacted()->create(['created_at' => now()->subDays(30)]);
+        Lead::factory()->lost()->create(['created_at' => now()->subDays(40)]);
+        LeadActivity::factory()->create([
+            'lead_id' => $touched->id,
+            'user_id' => $agent->id,
+            'type' => LeadActivityType::Call,
+            'happened_at' => now()->subDay(),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(FirmLeadsStatsOverview::class)
+            ->assertSeeInOrder([
+                'Stale working leads',
+                '1',
+            ]);
+    }
+
+    public function test_closed_volume_chart_compares_each_month_with_last_year(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $closedStatus = $this->closedStatus();
+        Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create([
+            'price' => '450000.00',
+            'closed_at' => '2026-09-02',
+        ]);
+        Sale::factory()->closed()->withoutAgents()->recycle($closedStatus)->create([
+            'price' => '125000.00',
+            'closed_at' => '2025-09-02',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(ClosedVolumeChart::class)
+            ->assertSee('Closed volume')
+            ->assertSee('450000')
+            ->assertSee('125000')
+            ->assertSee('2025')
+            ->assertSee('2026');
+    }
+
+    public function test_office_comparison_shows_volume_close_rate_and_pending_pipeline(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $miami = Location::factory()->create(['name' => 'Miami Office']);
+        $boston = Location::factory()->create(['name' => 'Boston Office']);
+        $admin = User::factory()->superAdmin()->create();
+        Sale::factory()->closed()->withoutAgents()->recycle([$this->closedStatus(), $miami])->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+        Sale::factory()->pending()->withoutAgents()->recycle([$this->pendingStatus(), $boston])->create([
+            'price' => '200000.00',
+            'commission_percentage' => '3.0',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LocationPerformanceTable::class)
+            ->assertCanSeeTableRecords([$miami, $boston])
+            ->assertTableColumnStateSet('closed_volume', '450000.00', $miami)
+            ->assertTableColumnStateSet('closed_volume', '0.00', $boston)
+            ->assertTableColumnStateSet('pending_volume', '200000.00', $boston)
+            ->assertTableColumnStateSet('closed_percent', '100%', $miami)
+            ->assertTableColumnStateSet('closed_percent', '0%', $boston);
+    }
+
+    public function test_office_comparison_is_hidden_when_a_location_is_selected(): void
+    {
+        $miami = Location::factory()->create(['name' => 'Miami Office']);
+        $admin = User::factory()->superAdmin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(Analytics::class)
+            ->assertSeeLivewire(LocationPerformanceTable::class)
+            ->set('filters.location_id', $miami->id)
+            ->assertDontSeeLivewire(LocationPerformanceTable::class);
+    }
+
+    public function test_lead_type_table_splits_volume_and_close_rate(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $closedStatus = $this->closedStatus();
+        $buyer = Lead::factory()->qualified()->create(['type' => SaleType::Buyer]);
+        Lead::factory()->asNew()->create(['type' => SaleType::Buyer]);
+        $seller = Lead::factory()->qualified()->create(['type' => SaleType::Seller]);
+        Sale::factory()->closed()->withoutAgents()->for($buyer)->recycle($closedStatus)->create([
+            'price' => '450000.00',
+        ]);
+        Sale::factory()->closed()->withoutAgents()->for($seller)->recycle($closedStatus)->create([
+            'price' => '200000.00',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LeadTypePerformanceTable::class)
+            ->assertSee('Buyer')
+            ->assertSee('Seller')
+            ->assertSee('$450,000.00')
+            ->assertSee('$200,000.00')
+            ->assertTableColumnStateSet('closed_percent', '50%', ['__key' => 'buyer'])
+            ->assertTableColumnStateSet('closed_percent', '100%', ['__key' => 'seller']);
+    }
+
+    public function test_agent_closed_percent_sorts_highest_first(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $low = User::factory()->create(['name' => 'Low Agent']);
+        $high = User::factory()->create(['name' => 'High Agent']);
+        $this->assignLead(Lead::factory()->contacted()->create(), $low);
+        $this->assignLead(Lead::factory()->contacted()->create(), $low);
+        $qualified = $this->assignLead(Lead::factory()->qualified()->create(), $high);
+        Sale::factory()->closed()->for($qualified)->recycle($this->closedStatus())->create();
+
+        Livewire::actingAs($admin)
+            ->test(AgentPerformanceTable::class)
+            ->sortTable('closed_percent', 'desc')
+            ->assertCanSeeTableRecords([$high, $low], inOrder: true);
+    }
+
+    public function test_agent_table_counts_outreach_in_the_period_and_overdue_tasks(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $lead = Lead::factory()->contacted()->create();
+        $agent = User::factory()->create([
+            'name' => 'Ada Agent',
+            'location_id' => $lead->location_id,
+        ]);
+        $this->assignLead($lead, $agent);
+        LeadActivity::factory()->create([
+            'lead_id' => $lead->id,
+            'user_id' => $agent->id,
+            'type' => LeadActivityType::Call,
+            'happened_at' => '2026-09-10',
+        ]);
+        LeadActivity::factory()->create([
+            'lead_id' => $lead->id,
+            'user_id' => $agent->id,
+            'type' => LeadActivityType::Note,
+            'happened_at' => '2026-09-10',
+        ]);
+        LeadActivity::factory()->create([
+            'lead_id' => $lead->id,
+            'user_id' => $agent->id,
+            'type' => LeadActivityType::Call,
+            'happened_at' => '2025-09-10',
+        ]);
+        Task::factory()->for($lead)->for($agent)->create([
+            'due_at' => '2026-09-01 09:00:00',
+        ]);
+        Task::factory()->for($lead)->for($agent)->create([
+            'due_at' => '2026-09-20 09:00:00',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(AgentPerformanceTable::class)
+            ->assertTableColumnStateSet('activities_count', 1, $agent)
+            ->assertTableColumnStateSet('overdue_tasks_count', 1, $agent);
+    }
+
+    public function test_agent_performance_table_exports_a_csv(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $agent = User::factory()->create(['name' => 'Ada Agent']);
+        $this->assignAgent(
+            Sale::factory()->closed()->withoutAgents()->recycle($this->closedStatus())->create([
+                'price' => '450000.00',
+                'commission_percentage' => '3.0',
+            ]),
+            $agent,
+        );
+
+        $component = Livewire::actingAs($admin)->test(AgentPerformanceTable::class);
+        $component->callAction(TestAction::make('export')->table());
+
+        $component->assertFileDownloaded('agent-performance.csv');
+
+        $content = base64_decode((string) data_get($component->effects, 'download.content'));
+
+        $this->assertStringContainsString('Ada Agent', $content);
+        $this->assertStringContainsString('450000.00', $content);
+        $this->assertStringContainsString('Production volume', $content);
+    }
+
+    public function test_lead_source_table_exports_a_csv(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $admin = User::factory()->superAdmin()->create();
+        $zillow = LeadSource::factory()->create(['name' => 'Zillow']);
+        $lead = Lead::factory()->qualified()->for($zillow, 'source')->create();
+        Sale::factory()->closed()->withoutAgents()->for($lead)->recycle($this->closedStatus())->create([
+            'price' => '450000.00',
+            'commission_percentage' => '3.0',
+        ]);
+
+        $component = Livewire::actingAs($admin)->test(LeadSourcePerformanceTable::class);
+        $component->callAction(TestAction::make('export')->table());
+
+        $component->assertFileDownloaded('lead-sources.csv');
+
+        $content = base64_decode((string) data_get($component->effects, 'download.content'));
+
+        $this->assertStringContainsString('Zillow', $content);
+        $this->assertStringContainsString('450000.00', $content);
     }
 
     private function assignLead(Lead $lead, User $agent): Lead

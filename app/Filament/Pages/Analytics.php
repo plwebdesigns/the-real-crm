@@ -2,10 +2,14 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\AnalyticsPeriod;
 use App\Filament\Widgets\AgentPerformanceTable;
+use App\Filament\Widgets\ClosedVolumeChart;
 use App\Filament\Widgets\FirmLeadsStatsOverview;
 use App\Filament\Widgets\FirmSalesStatsOverview;
 use App\Filament\Widgets\LeadSourcePerformanceTable;
+use App\Filament\Widgets\LeadTypePerformanceTable;
+use App\Filament\Widgets\LocationPerformanceTable;
 use App\Models\Location;
 use App\Models\User;
 use BackedEnum;
@@ -36,13 +40,28 @@ class Analytics extends Dashboard
         return $user instanceof User && $user->is_admin;
     }
 
+    public function booted(): void
+    {
+        $period = $this->filters['period'] ?? null;
+
+        if (is_string($period) && AnalyticsPeriod::tryFrom($period) instanceof AnalyticsPeriod) {
+            return;
+        }
+
+        $filters = $this->filters ?? [];
+        $filters['period'] = AnalyticsPeriod::YearToDate->value;
+        $this->filters = $filters;
+
+        if ($this->persistsFiltersInSession()) {
+            session()->put($this->getFiltersSessionKey(), $this->filters);
+        }
+    }
+
     public function content(Schema $schema): Schema
     {
-        $user = auth()->user();
-
         return $schema
             ->components([
-                ...($user instanceof User && $user->is_super_admin ? [$this->getFiltersFormContentComponent()] : []),
+                $this->getFiltersFormContentComponent(),
                 $this->getWidgetsContentComponent(),
             ]);
     }
@@ -51,11 +70,22 @@ class Analytics extends Dashboard
     {
         return $schema
             ->components([
+                Select::make('period')
+                    ->label('Period')
+                    ->options(AnalyticsPeriod::options())
+                    ->default(AnalyticsPeriod::YearToDate->value)
+                    ->selectablePlaceholder(false)
+                    ->native(false),
                 Select::make('location_id')
                     ->label('Location')
                     ->options(fn (): array => Location::query()->orderBy('name')->pluck('name', 'id')->all())
                     ->searchable()
-                    ->placeholder('All locations'),
+                    ->placeholder('All locations')
+                    ->visible(function (): bool {
+                        $user = auth()->user();
+
+                        return $user instanceof User && $user->is_super_admin;
+                    }),
             ]);
     }
 
@@ -67,8 +97,24 @@ class Analytics extends Dashboard
         return [
             FirmSalesStatsOverview::class,
             FirmLeadsStatsOverview::class,
+            ClosedVolumeChart::class,
+            ...($this->showsLocationComparison() ? [LocationPerformanceTable::class] : []),
+            LeadTypePerformanceTable::class,
             AgentPerformanceTable::class,
             LeadSourcePerformanceTable::class,
         ];
+    }
+
+    private function showsLocationComparison(): bool
+    {
+        $user = auth()->user();
+
+        if (! $user instanceof User || ! $user->is_super_admin) {
+            return false;
+        }
+
+        $locationId = $this->filters['location_id'] ?? null;
+
+        return ! is_numeric($locationId);
     }
 }
