@@ -1,5 +1,8 @@
 # The Real CRM
 
+[![CI](https://github.com/plwebdesigns/the-real-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/plwebdesigns/the-real-crm/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white)
 ![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![Filament 5](https://img.shields.io/badge/Filament-5-FDAE4B)
@@ -84,7 +87,7 @@ Versions below are the ones locked in `composer.lock` and `package-lock.json`.
 
 | | |
 |---|---|
-| PHP | 8.4.1+ (this lockfile). `composer.json` still says `^8.3`, which cannot install it. |
+| PHP | 8.4.1+ (`composer.json` requires `^8.4.1`, the same floor as this lockfile). |
 | Laravel | 13.29 |
 | Filament | 5.7 |
 | Livewire | 4.4 |

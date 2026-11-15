@@ -63,20 +63,28 @@ class SeedClock
         return [$start, $end];
     }
 
+    /**
+     * A random instant inside the bounds, expressed in the bounds' timezone.
+     *
+     * Eloquent stores the formatted clock and reads it back in the application
+     * timezone. accept() returns a UTC clock so MySQL can skip a daylight-saving
+     * gap; storing that UTC clock makes a time within one offset of now look
+     * later than now.
+     */
     public function between(CarbonInterface $start, CarbonInterface $end): CarbonImmutable
     {
         if ($end->lessThanOrEqualTo($start)) {
-            return $this->accept($start);
+            return $this->accept($start)->setTimezone($end->getTimezone());
         }
 
         $timestamp = CarbonImmutable::parse(fake()->dateTimeBetween($start, $end));
         $accepted = $this->accept($timestamp);
 
         if ($accepted->greaterThan($end)) {
-            return $this->accept($timestamp->subHour());
+            $accepted = $this->accept($timestamp->subHour());
         }
 
-        return $accepted;
+        return $accepted->setTimezone($end->getTimezone());
     }
 
     public function accept(DateTimeInterface $timestamp): CarbonImmutable
