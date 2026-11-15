@@ -105,6 +105,71 @@ Versions below are the ones locked in `composer.lock` and `package-lock.json`.
 
 **Analytics.** `app/Filament/Pages/Analytics.php` is limited to admins. Widgets for firm totals, closed volume, offices, lead type, agent performance, and lead source live under `app/Filament/Widgets/`. `tests/Feature/Filament/AnalyticsTest.php`.
 
+## Architecture
+
+Roles are columns on [`User`](app/Models/User.php). `is_super_admin` has a null `location_id` and sees every office. A location admin is `is_admin` with an office. An agent has neither flag. Lead status, sale status, and lead source are firm-wide `name` / `slug` rows. Seeded slugs are in [`LookupSeeder`](database/seeders/LookupSeeder.php). A lead is working when its status is `contacted` or `qualified`, and closed when its sale's status is `closed`.
+
+```mermaid
+erDiagram
+    Location ||--o{ Lead : office
+    Location ||--o{ Sale : office
+    Location |o--o{ User : office
+    LeadStatus ||--o{ Lead : status
+    LeadSource ||--o{ Lead : source
+    Lead ||--o| Sale : "at most one"
+    SaleStatus ||--o{ Sale : status
+    User }o--o{ Lead : lead_user
+    Sale ||--o{ SaleUser : split
+    User ||--o{ SaleUser : agent
+    User {
+        boolean is_admin
+        boolean is_super_admin
+        int location_id "nullable"
+    }
+    Sale {
+        decimal gross_commission
+        decimal brokerage_fee
+    }
+    SaleUser {
+        int commission_percent
+        decimal net_commission
+    }
+```
+
+**Office and roles.** List queries opt in. [`LeadResource`](app/Filament/Resources/Leads/LeadResource.php), [`SaleResource`](app/Filament/Resources/Sales/SaleResource.php), [`TaskResource`](app/Filament/Resources/Tasks/TaskResource.php), and [`UserResource`](app/Filament/Resources/Users/UserResource.php) use [`ScopesRecordsToLocation`](app/Filament/Concerns/ScopesRecordsToLocation.php), which calls `visibleTo()`. Analytics widgets call the same scope. [`User::canAccessLocation()`](app/Models/User.php) is the shared check: a super admin passes, and everyone else must share a non-null `location_id`. The panel is [`AppPanelProvider`](app/Providers/Filament/AppPanelProvider.php). [`Analytics::canAccess()`](app/Filament/Pages/Analytics.php) requires `is_admin`. [`LocationResource::canAccess()`](app/Filament/Resources/Locations/LocationResource.php) requires `is_super_admin`.
+
+```mermaid
+flowchart TD
+    req["Signed-in request"] --> mw["Authenticate and EnsurePasswordIsSet"]
+    mw --> resources["Lead, sale, task, and user resources"]
+    resources --> scope["ScopesRecordsToLocation calls visibleTo"]
+    scope --> super{"is_super_admin"}
+    super -->|yes| allOffices["Every office"]
+    super -->|no| office["Same office. Tasks use the lead's office"]
+    office --> saleCheck{"Sale query for an agent"}
+    saleCheck -->|yes| assigned["Also assignedTo this agent"]
+    saleCheck -->|no| officeRows["Rows in that office"]
+    allOffices --> record["View, update, or delete one record"]
+    assigned --> record
+    officeRows --> record
+    record --> policy["Laravel policy"]
+    policy --> leadTask["Lead and task: canAccessLocation"]
+    policy --> salePol["Sale: same office, and admin or assigned"]
+    policy --> userPol["User: super admin, or office admin in that office"]
+    policy --> locPol["Location: is_super_admin"]
+    policy --> lookupPol["Statuses and sources: is_admin"]
+```
+
+[`Lead::visibleTo()`](app/Models/Lead.php) and [`Task::visibleTo()`](app/Models/Task.php) return every lead and task in the office, so a location admin and an agent both see that pipeline. The dashboard stats and "My leads" table then narrow to the signed-in user's `leads()` and `sales()`. [`Sale::visibleTo()`](app/Models/Sale.php) shows an office admin every sale in the office, and an agent only sales with their `sale_user` row. [`SalePolicy`](app/Policies/SalePolicy.php) repeats that check on one record. [`LeadPolicy`](app/Policies/LeadPolicy.php) uses [`AllowsLocationMembers`](app/Policies/Concerns/AllowsLocationMembers.php). [`TaskPolicy`](app/Policies/TaskPolicy.php) follows the lead's office. [`UserPolicy`](app/Policies/UserPolicy.php) lets a super admin manage any user, and a location admin manage users in their office. [`LocationPolicy`](app/Policies/LocationPolicy.php) allows only a super admin. [`LeadStatusPolicy`](app/Policies/LeadStatusPolicy.php), [`SaleStatusPolicy`](app/Policies/SaleStatusPolicy.php), and [`LeadSourcePolicy`](app/Policies/LeadSourcePolicy.php) allow any admin. Downloads go through the same `view` ability: [`LeadDocumentController`](app/Http/Controllers/LeadDocumentController.php) and [`SaleDocumentController`](app/Http/Controllers/SaleDocumentController.php).
+
+On save, [`CreateLead`](app/Filament/Resources/Leads/Pages/CreateLead.php) sets `location_id` from the signed-in agent or location admin, and [`EditLead`](app/Filament/Resources/Leads/Pages/EditLead.php) drops a submitted `location_id` so the office stays put. A [`Sale`](app/Models/Sale.php) copies `location_id` and `sale_type` from its lead. [`ConstrainsUserLocationFields`](app/Filament/Resources/Users/Concerns/ConstrainsUserLocationFields.php) keeps a location admin inside their office. Turning on `is_super_admin` also sets `is_admin` and clears `location_id`.
+
+**Commission.** Saving a sale sets `gross_commission` to price times the commission percent, rounded to cents, then `brokerage_fee` from `config('app.brokerage_fee')`. [`config/app.php`](config/app.php) defaults that to 250 and `fixed`. [`BrokerageFeeType`](app/Enums/BrokerageFeeType.php) also allows `percent` of the gross. The fee is clamped to the range from 0 through the gross. [`SaleUser::netCommissionFor()`](app/Models/SaleUser.php) stores each agent's percent of gross minus fee, and a later change to price, percent, or fee re-saves those rows. [`SaleForm`](app/Filament/Resources/Sales/Schemas/SaleForm.php) requires at least one agent, integer splits from 1 to 100, and a total of 100. The agent list is `User::atLocation()`: the viewer's office, or the lead's office for a super admin. The sale's own commission percent must be from 1.0 to 6.0.
+
+**Lead to sale.** `sales.lead_id` is unique in [`create_sales_table`](database/migrations/2026_08_31_155725_create_sales_table.php), and [`Lead::sale()`](app/Models/Lead.php) is `hasOne`. The sale form only offers leads that have no sale yet. **Create related lead** inserts another lead: [`CreateLead`](app/Filament/Resources/Leads/Pages/CreateLead.php) copies name, email, phone, source, office, and agents from the `related` query parameter, and [`SaleType::relatedType()`](app/Enums/SaleType.php) swaps buyer and seller. Rental and other stay as they are. Each lead still has at most one sale.
+
+**Tests.** Policies: [`SalePolicyTest`](tests/Feature/SalePolicyTest.php), [`LeadPolicyTest`](tests/Feature/LeadPolicyTest.php), [`UserPolicyTest`](tests/Feature/UserPolicyTest.php), [`LocationPolicyTest`](tests/Feature/LocationPolicyTest.php), and [`LeadStatusPolicyTest`](tests/Feature/LeadStatusPolicyTest.php). Cross-office panel access: [`LocationIsolationTest`](tests/Feature/Filament/LocationIsolationTest.php). [`SaleTest`](tests/Feature/Models/SaleTest.php) covers `visibleTo` for an agent, an office admin, and a super admin, plus gross commission, the $250 fee, 50/50 nets, a fee clamped to the gross, and a price edit that rewrites nets. [`SaleResourceTest`](tests/Feature/Filament/SaleResourceTest.php) rejects a second sale on a lead, and agent splits unless they sum to 100. Related leads: [`LeadResourceTest`](tests/Feature/Filament/LeadResourceTest.php) and [`LeadTest`](tests/Feature/Models/LeadTest.php).
+
 ## Local setup
 
 You need PHP 8.4.1 or newer (`bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `intl`, `mbstring`, `openssl`, `pdo`, `tokenizer`, `xml`, `zip`, plus `pdo_sqlite` or `pdo_mysql`), Composer 2, and Node.js 20 or newer.
