@@ -19,6 +19,7 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <env name="APP_KEY" value="base64:tRZCjnChkMQl6habRMXKrVUP9HWpasHeA0rVF5O6s/s="/>
         <env name="BROKERAGE_FEE" value="250" force="true"/>
         <env name="BROKERAGE_FEE_TYPE" value="fixed" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>

@@ -36,6 +36,21 @@ class SeedClockTest extends TestCase
         $this->assertSame('2026-03-08 02:43:24', $accepted->format('Y-m-d H:i:s'));
     }
 
+    public function test_between_keeps_the_clock_in_the_bounds_timezone(): void
+    {
+        $clock = new SeedClock(new DateTimeZone('UTC'));
+        $end = CarbonImmutable::parse('2026-10-11 15:00:00', 'America/New_York');
+
+        $accepted = $clock->between(
+            CarbonImmutable::parse('2026-10-01 00:00:00', 'America/New_York'),
+            $end,
+        );
+
+        $this->assertSame('America/New_York', $accepted->getTimezone()->getName());
+        $this->assertTrue($accepted->lessThanOrEqualTo($end));
+        $this->assertLessThanOrEqual($end->format('Y-m-d H:i:s'), $accepted->format('Y-m-d H:i:s'));
+    }
+
     public function test_time_past_the_range_end_moves_back_before_the_gap(): void
     {
         $clock = new SeedClock(new DateTimeZone('America/New_York'));
