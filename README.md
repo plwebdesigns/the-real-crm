@@ -9,6 +9,8 @@
 ![Livewire 4](https://img.shields.io/badge/Livewire-4-FB70A9?logo=livewire&logoColor=white)
 ![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
 
+**Live demo:** [https://therealcrm.longoapps.com](https://therealcrm.longoapps.com) (redirects to `/login`)
+
 A Laravel and Filament CRM for a multi-office realty team. Agents work leads and sales in their office, location admins run that office, and a super admin sees the whole firm.
 
 The panel lives at `/`. Sign in at `/login`.
@@ -37,7 +39,7 @@ Downtown admin's agent list. All six people are Downtown. Settings for this role
 
 ## Demo accounts
 
-All four use **`Password123`**.
+These accounts work on the [live demo](https://therealcrm.longoapps.com/login). All four use **`Password123`**.
 
 | Role | Email | What you should see |
 |---|---|---|
